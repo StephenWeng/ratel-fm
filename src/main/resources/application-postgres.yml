@@ -1,0 +1,24 @@
+spring:
+  # PostgreSQL profile 用于正式数据库或联调数据库；默认值来自当前测试环境，生产必须用环境变量覆盖。
+  # H2 示例：url=jdbc:h2:file:./data/ratel-fm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH，driver-class-name=org.h2.Driver，database-platform=org.hibernate.dialect.H2Dialect。
+  # PostgreSQL 示例：url=jdbc:postgresql://<数据库IP>:5432/<数据库名>，driver-class-name=org.postgresql.Driver，database-platform=org.hibernate.dialect.PostgreSQLDialect。
+  datasource:
+    # PostgreSQL JDBC 地址；例如 jdbc:postgresql://<数据库IP>:5432/<数据库名>。
+    url: ${FM_DB_URL:jdbc:postgresql://192.168.241.89:5432/fm}
+    # PostgreSQL 用户名。
+    username: ${FM_DB_USERNAME:postgres}
+    # PostgreSQL 密码，正式部署必须通过环境变量覆盖，不能保留示例密码。
+    password: ${FM_DB_PASSWORD:Command_123}
+    # PostgreSQL JDBC 驱动类，固定为 org.postgresql.Driver；H2 模式应改为 org.h2.Driver。
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    # PostgreSQL 方言用于生成兼容 PostgreSQL 的 SQL 和分页语法；H2 模式应改为 org.hibernate.dialect.H2Dialect。
+    # Hibernate PostgreSQL 方言。
+    database-platform: ${FM_JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+
+app:
+  database:
+    # PostgreSQL profile 启用数据库注释、索引和兼容初始化器，保证正式库元数据完整。
+    postgresql-initializer:
+      # 是否执行 PostgreSQL comment on table/column、索引和兼容初始化。
+      enabled: true

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ollama 独立部署包。
+  包内包含 Ollama Windows/Linux x64 运行时、按操作系统分目录的独立启停脚本和本地模型；
+  Ratel FM 主应用不会自动启动或停止本包，现场需要按需单独启停。
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>ollama</id>
+    <formats>
+        <!-- 输出 zip，保持和主应用便携包一致的交付方式。 -->
+        <format>zip</format>
+    </formats>
+    <!-- 独立包保留顶层目录，适合解压到主应用同级目录。 -->
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <!-- 固定目录名，主应用总控脚本按该名称自动发现 Ollama 包。 -->
+    <baseDirectory>ratel-fm-ollama</baseDirectory>
+
+    <fileSets>
+        <!-- 两个平台运行时、脚本、README 和目录占位；models 目录由下面的 ollama-models 统一打入。 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/ollama-package</directory>
+            <outputDirectory>.</outputDirectory>
+            <excludes>
+                <!-- models 目录由工程根目录 ollama-models 注入，避免打入占位目录。 -->
+                <exclude>models/**</exclude>
+            </excludes>
+        </fileSet>
+        <!-- 工程根目录中的实际 Ollama 模型仓库，包含 manifests 和 blobs，不能按模型手工拆目录。 -->
+        <fileSet>
+            <directory>${project.basedir}/ollama-models</directory>
+            <outputDirectory>models</outputDirectory>
+            <useDefaultExcludes>false</useDefaultExcludes>
+        </fileSet>
+    </fileSets>
+</assembly>

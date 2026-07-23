@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ratel FM 主应用便携包。
+  只包含后端 jar、前端静态资源、内置 JDK、配置、初始化脚本和主应用启停脚本；
+  不包含 Ollama 或 Qdrant，它们作为独立包单独启停，避免主应用启动失败被外部组件拖累。
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>portable</id>
+    <formats>
+        <!-- 输出 zip，便于桌面解压部署。 -->
+        <format>zip</format>
+    </formats>
+    <!-- 包内保留顶层目录，避免用户解压时文件散落到桌面。 -->
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <!-- 主应用顶层目录名，Ollama/Qdrant 总控脚本按同级目录查找独立包。 -->
+    <baseDirectory>${project.artifactId}-${project.version}-portable</baseDirectory>
+
+    <files>
+        <!-- Spring Boot 可执行 jar，启动脚本固定从 app/ratel-fm.jar 读取。 -->
+        <file>
+            <source>${project.build.directory}/${project.build.finalName}.jar</source>
+            <outputDirectory>app</outputDirectory>
+            <destName>ratel-fm.jar</destName>
+        </file>
+        <!-- 外置配置文件随包提供默认模板，现场可按环境变量或直接编辑覆盖。 -->
+        <file>
+            <source>${project.basedir}/src/main/resources/application.yml</source>
+            <outputDirectory>config</outputDirectory>
+        </file>
+        <!-- PostgreSQL profile 配置随包提供，便于从 H2 切换到正式库。 -->
+        <file>
+            <source>${project.basedir}/src/main/resources/application-postgres.yml</source>
+            <outputDirectory>config</outputDirectory>
+        </file>
+        <!-- 日志配置随包外置，现场可调整日志级别和滚动策略。 -->
+        <file>
+            <source>${project.basedir}/src/main/resources/logback-spring.xml</source>
+            <outputDirectory>config</outputDirectory>
+        </file>
+        <!-- PostgreSQL 初始化基线脚本，生产建库或审计表结构时使用。 -->
+        <file>
+            <source>${project.basedir}/src/main/resources/init.sql</source>
+            <outputDirectory>db</outputDirectory>
+        </file>
+        <!-- 用户部署和架构说明文档随包交付。 -->
+        <file>
+            <source>${project.basedir}/README.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/PA.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+    </files>
+
+    <fileSets>
+        <!-- 主应用 Windows/Linux 启停脚本。 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/package/bin</directory>
+            <outputDirectory>bin</outputDirectory>
+            <!-- 脚本在 Linux 上解压后保留可执行权限；Windows 忽略该权限。 -->
+            <fileMode>0755</fileMode>
+        </fileSet>
+        <!-- 便携包专用 README。 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/package</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>README-PORTABLE.md</include>
+            </includes>
+        </fileSet>
+        <!-- 业务附件目录占位，避免空目录在 zip 中丢失。 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/package/files</directory>
+            <outputDirectory>files</outputDirectory>
+            <includes>
+                <include>.keep</include>
+            </includes>
+        </fileSet>
+        <!-- Maven 打包阶段生成的 H2 模板库，首次启动时复制为运行库。 -->
+        <fileSet>
+            <directory>${project.build.directory}/h2-template</directory>
+            <outputDirectory>database-template</outputDirectory>
+            <includes>
+                <include>ratel-fm.mv.db</include>
+            </includes>
+        </fileSet>
+        <!-- 内置 JDK，目标机器无需预装 Java。 -->
+        <fileSet>
+            <directory>${bundled.jdk.path}</directory>
+            <outputDirectory>runtime/jdk</outputDirectory>
+        </fileSet>
+    </fileSets>
+</assembly>

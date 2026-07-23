@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/ratel/fm/favicon.svg" />
+    <script>
+      ;(function () {
+        try {
+          var theme = window.localStorage.getItem('ratel-fm-theme')
+          var allowedThemes = ['light', 'dark', 'emerald', 'finance-blue']
+          if (allowedThemes.indexOf(theme) >= 0) {
+            document.documentElement.dataset.theme = theme
+            document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light'
+          }
+        } catch (error) {
+          // 主题预加载失败时交给应用启动后的主题 Store 兜底处理。
+        }
+      })()
+    </script>
+    <title>Ratel FM</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+# aot profile 只在 Spring Boot process-aot 阶段使用，目标是生成 AOT 元数据而不是启动真实业务服务。
+spring:
+  # 使用内存 H2，避免 AOT 阶段连接真实数据库或修改本地便携库。
+  # H2 示例：url=jdbc:h2:mem:ratel_fm_aot;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH，driver-class-name=org.h2.Driver，database-platform/dialect=org.hibernate.dialect.H2Dialect。
+  # PostgreSQL 示例：url=jdbc:postgresql://<数据库IP>:5432/<数据库名>，driver-class-name=org.postgresql.Driver，database-platform/dialect=org.hibernate.dialect.PostgreSQLDialect；AOT 阶段不连接 PostgreSQL。
+  datasource:
+    # AOT 阶段内存 H2 JDBC 地址；H2 内存库格式为 jdbc:h2:mem:<库名>;MODE=PostgreSQL...
+    url: jdbc:h2:mem:ratel_fm_aot;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    # AOT 阶段 H2 用户名。
+    username: sa
+    # AOT 阶段 H2 密码，默认空。
+    password:
+    # AOT 阶段 H2 JDBC 驱动类，固定为 org.h2.Driver；PostgreSQL 场景应使用 org.postgresql.Driver。
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # AOT 阶段不做 DDL，避免构建时写库。
+      # Hibernate DDL 策略。
+      ddl-auto: none
+    properties:
+      hibernate:
+        # AOT 阶段 Hibernate 方言，H2 为 org.hibernate.dialect.H2Dialect；PostgreSQL 为 org.hibernate.dialect.PostgreSQLDialect。
+        dialect: org.hibernate.dialect.H2Dialect
+
+app:
+  ai:
+    knowledge:
+      # AOT 阶段只生成运行时提示元数据，不连接 Qdrant 或调用 Ollama 生成向量。
+      # 是否在知识向量库为空时自动重建索引。
+      auto-rebuild-when-empty: false
+  bootstrap:
+    # AOT 阶段不执行默认数据初始化，避免生成元数据时产生业务副作用。
+    # 是否执行默认菜单、角色、用户和字典初始化。
+    enabled: false
+  database:
+    initializer:
+      # AOT 阶段不执行数据库兼容初始化。
+      # 是否执行通用数据库初始化器。
+      enabled: false

@@ -1,0 +1,334 @@
+spring:
+  # 应用名用于日志、管理端点和 Spring Boot 启动标识。
+  application:
+    # Spring Boot 应用名称，日志和 actuator info 会使用该名称。
+    name: ratel-fm
+  # 默认使用便携式 H2 文件库；生产可通过 FM_DB_* 环境变量切换 PostgreSQL。
+  # H2 示例：url=jdbc:h2:file:./data/ratel-fm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH，driver-class-name=org.h2.Driver，database-platform=org.hibernate.dialect.H2Dialect。
+  # PostgreSQL 示例：url=jdbc:postgresql://<数据库IP>:5432/<数据库名>，driver-class-name=org.postgresql.Driver，database-platform=org.hibernate.dialect.PostgreSQLDialect。
+  datasource:
+    # JDBC 连接地址；H2 使用 jdbc:h2:file:./data/ratel-fm...，PostgreSQL 使用 jdbc:postgresql://<数据库IP>:5432/<数据库名>。
+    url: ${FM_DB_URL:jdbc:h2:file:./data/ratel-fm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    # 数据库用户名，H2 默认 sa，PostgreSQL 部署时通过环境变量覆盖。
+    username: ${FM_DB_USERNAME:sa}
+    # 数据库密码，默认 H2 为空；正式库密码必须走环境变量。
+    password: ${FM_DB_PASSWORD:}
+    # JDBC 驱动类；H2 填 org.h2.Driver，PostgreSQL 填 org.postgresql.Driver。
+    driver-class-name: ${FM_DB_DRIVER:org.h2.Driver}
+  jpa:
+    # 快速迭代阶段允许自动补表结构；正式生产建议迁移到 Flyway/Liquibase。
+    hibernate:
+      # Hibernate DDL 策略，update 会在启动时补齐缺失表和字段。
+      ddl-auto: update
+    # 禁止 Web 层延迟加载实体，避免接口序列化阶段隐式访问数据库。
+    open-in-view: false
+    properties:
+      hibernate:
+        # 格式化 Hibernate SQL，便于开发排查；SQL 日志级别默认关闭明细输出。
+        format_sql: true
+        jdbc:
+          # JDBC 时间统一按上海时区处理，保证日期时间字段和业务展示一致。
+          time_zone: Asia/Shanghai
+    # Hibernate 方言；H2 填 org.hibernate.dialect.H2Dialect，PostgreSQL 填 org.hibernate.dialect.PostgreSQLDialect。
+    database-platform: ${FM_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+  servlet:
+    multipart:
+      # 附件上传大小限制同时保护内存、磁盘和反向代理链路。
+      # 单个上传文件大小上限，超过后由 Spring Multipart 拒绝。
+      max-file-size: ${FM_ATTACHMENT_MAX_FILE_SIZE:50MB}
+      # 单次 multipart 请求总大小上限，限制多附件一次性上传。
+      max-request-size: ${FM_ATTACHMENT_MAX_REQUEST_SIZE:200MB}
+
+server:
+  # 便携包默认监听 38000，避免和常见开发端口冲突。
+  # HTTP 服务端口，启动脚本健康检查依赖该端口。
+  port: ${SERVER_PORT:38000}
+  servlet:
+    # 前后端统一挂载在 /ratel/fm，部署脚本和前端 base path 依赖该路径。
+    # Servlet 上下文路径，前端 Vite base 和 API 路由必须保持一致。
+    context-path: ${SERVER_SERVLET_CONTEXT_PATH:/ratel/fm}
+  ssl:
+    # HTTPS 默认由便携包启动脚本动态生成证书后启用；开发运行默认关闭。
+    # 是否启用 Spring Boot 主端口 HTTPS。
+    enabled: ${SERVER_SSL_ENABLED:false}
+    # HTTPS 服务证书 keystore 路径；便携包启动脚本会指向 certs/ratel-fm-server.p12。
+    key-store: ${SERVER_SSL_KEY_STORE:}
+    # HTTPS 服务证书 keystore 密码；便携包启动脚本从本地密码文件读取，不写死到配置。
+    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:}
+    # HTTPS 服务证书 keystore 类型。
+    key-store-type: ${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
+    # HTTPS 服务证书别名。
+    key-alias: ${SERVER_SSL_KEY_ALIAS:ratel-fm-server}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # 仅开放健康检查和基本信息，部署脚本用 health 判断启动状态。
+        # Actuator Web 暴露端点清单，默认不开放敏感运维端点。
+        include: health,info
+
+logging:
+  level:
+    # 默认压低 SQL 明细日志，避免业务数据和参数大量写入日志文件。
+    # Hibernate SQL 语句日志级别。
+    org.hibernate.SQL: WARN
+    # Hibernate SQL 绑定参数日志级别。
+    org.hibernate.orm.jdbc.bind: WARN
+    # Spring Boot 条件评估报告日志级别，保留 INFO 便于启动问题排查。
+    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger: INFO
+
+springdoc:
+  api-docs:
+    # 是否开放 OpenAPI JSON 文档。
+    enabled: true
+  swagger-ui:
+    # 是否开放 Swagger UI 页面。
+    enabled: true
+knife4j:
+  # 是否启用 Knife4j 增强文档界面。
+  enable: true
+  setting:
+    # Knife4j 页面语言。
+    language: zh_cn
+
+app:
+  https:
+    # HTTPS 启用后是否保留一个额外 HTTP 端口，方便普通业务继续用 HTTP 内网 IP 访问。
+    # 语音控制和浏览器定位建议走 HTTPS；普通业务可继续走 HTTP。
+    http-enabled: ${FM_HTTPS_HTTP_ENABLED:false}
+    # 额外 HTTP 端口；便携包默认 HTTPS 使用 38443，HTTP 保留 38000。
+    http-port: ${FM_HTTPS_HTTP_PORT:38000}
+  attachments:
+    # 业务附件保存目录；便携包中默认落到同级 files 目录。
+    # 所有上传附件的根目录，启动脚本会将其指向包内 files。
+    base-dir: ${FM_ATTACHMENT_BASE_DIR:./files}
+  export:
+    # 单次导出最大行数，避免浏览器和后端内存被大文件拖垮。
+    # Excel 导出行数上限，超过时后端拒绝或截断导出。
+    max-rows: ${FM_EXPORT_MAX_ROWS:5000}
+  ai:
+    model:
+      # 当前通用大模型提供方，只允许选择 ollama 或 qwen；不会自动降级到另一方，便于排查实际调用链。
+      provider: ${FM_AI_MODEL_PROVIDER:ollama}
+    qwen:
+      # 千问云端模型是可选兜底；无 token 时本地 Ollama 仍可工作。
+      # 是否允许调用千问云端模型；没有 API Key 时即使开启也会判定不可用。
+      enabled: ${QWEN_ENABLED:true}
+      # 生产环境通过 QWEN_API_KEY 配置密钥，不要把真实密钥写入配置文件。
+      # DashScope API Key，默认空，必须通过环境变量注入。
+      api-key: ${QWEN_API_KEY:}
+      # 千问 OpenAI 兼容接口地址。
+      base-url: ${QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+      # 千问对话模型名称，用于云端问答和 query 改写。
+      chat-model: ${QWEN_CHAT_MODEL:qwen-plus}
+      # 千问视觉模型名称，用于图片或扫描件凭证识别。
+      vision-model: ${QWEN_VISION_MODEL:qwen-vl-plus}
+      # 千问 embedding 模型名称，当前默认不作为本地知识索引依赖。
+      embedding-model: ${QWEN_EMBEDDING_MODEL:text-embedding-v4}
+      # 千问单次 HTTP 请求超时时间。
+      request-timeout-seconds: ${QWEN_TIMEOUT_SECONDS:30}
+      # 千问最大并发请求数，防止外部接口卡顿占满服务线程。
+      max-concurrent-requests: ${QWEN_MAX_CONCURRENT_REQUESTS:2}
+      # 千问 HTTP 客户端固定线程数。
+      executor-threads: ${QWEN_EXECUTOR_THREADS:4}
+      # 千问连续失败触发熔断的阈值。
+      failure-threshold: ${QWEN_FAILURE_THRESHOLD:3}
+      # 千问熔断后暂停调用的秒数。
+      circuit-breaker-seconds: ${QWEN_CIRCUIT_BREAKER_SECONDS:60}
+      # 发给千问的提示词最大字符数。
+      max-prompt-chars: ${QWEN_MAX_PROMPT_CHARS:16000}
+      # 千问响应体最大读取字符数，防止异常响应占用堆内存。
+      max-response-chars: ${QWEN_MAX_RESPONSE_CHARS:120000}
+      # 千问最大输出 token 数。
+      max-output-tokens: ${QWEN_MAX_OUTPUT_TOKENS:800}
+    ollama:
+      # 本地 Ollama 默认启用；启动和关闭由独立部署包脚本负责。
+      # 是否启用本地 Ollama 客户端。
+      enabled: ${FM_AI_OLLAMA_ENABLED:true}
+      # Ratel FM 后端访问 Ollama 的 HTTP 地址，默认指向局域网模型服务器。
+      base-url: ${FM_AI_OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      # 普通业务问答、语音操作、复杂分析和 embedding 分别使用不同模型路由。
+      # 普通业务问答优先模型。
+      chat-model: ${FM_AI_OLLAMA_CHAT_MODEL:qwen2.5:7b}
+      # 语音控制、菜单跳转和填表指令优先模型。
+      command-model: ${FM_AI_OLLAMA_COMMAND_MODEL:llama3.2:3b}
+      # 复杂分析、原因解释和趋势判断优先模型。
+      reasoning-model: ${FM_AI_OLLAMA_REASONING_MODEL:deepseek-r1:8b}
+      # 图片 OCR、扫描件和凭证导入识别优先使用的本地视觉模型；未下载时自动回退千问视觉模型。
+      vision-model: ${FM_AI_OLLAMA_VISION_MODEL:qwen2.5vl:7b}
+      # 本地 embedding 模型，Qdrant 模式必须可用。
+      embedding-model: ${FM_AI_OLLAMA_EMBEDDING_MODEL:bge-m3:latest}
+      # Ollama 单次请求超时时间，本地模型首 token 较慢所以默认高于云端。
+      request-timeout-seconds: ${FM_AI_OLLAMA_TIMEOUT_SECONDS:180}
+      # Ollama 最大并发请求数，笔记本部署默认串行保护 CPU/内存。
+      max-concurrent-requests: ${FM_AI_OLLAMA_MAX_CONCURRENT_REQUESTS:1}
+      # Ollama HTTP 客户端固定线程数。
+      executor-threads: ${FM_AI_OLLAMA_EXECUTOR_THREADS:2}
+      # Ollama 连续失败触发熔断的阈值。
+      failure-threshold: ${FM_AI_OLLAMA_FAILURE_THRESHOLD:2}
+      # Ollama 熔断后暂停调用的秒数。
+      circuit-breaker-seconds: ${FM_AI_OLLAMA_CIRCUIT_BREAKER_SECONDS:30}
+      # 发给 Ollama 的提示词最大字符数。
+      max-prompt-chars: ${FM_AI_OLLAMA_MAX_PROMPT_CHARS:12000}
+      # Ollama 响应体最大读取字符数。
+      max-response-chars: ${FM_AI_OLLAMA_MAX_RESPONSE_CHARS:80000}
+      # Ollama 最大输出 token 数。
+      max-output-tokens: ${FM_AI_OLLAMA_MAX_OUTPUT_TOKENS:800}
+      # Ollama 推理上下文窗口；本地部署默认 4096，避免上下文过大导致响应明显变慢。
+      context-window-tokens: ${FM_AI_OLLAMA_CONTEXT_WINDOW_TOKENS:4096}
+      # Ollama 模型常驻时间；连续问答时减少反复装载模型的等待。
+      keep-alive: ${FM_AI_OLLAMA_KEEP_ALIVE:30m}
+    knowledge:
+      # 默认不在启动链路重建索引，避免启动时大量读取业务数据或调用本地模型。
+      # 是否应用启动后自动重建知识索引。
+      auto-rebuild-on-startup: ${FM_AI_REBUILD_ON_STARTUP:false}
+      # 首次部署时如果当前向量库为空，启动后自动尝试重建一次；失败只记录日志，不阻塞主应用。
+      # 是否在知识向量库为空时自动重建索引。
+      auto-rebuild-when-empty: ${FM_AI_REBUILD_WHEN_EMPTY:true}
+      # 首次检查前等待 Ollama 与 Qdrant 完成监听，避免总控脚本并行启动产生竞态。
+      startup-rebuild-initial-delay-seconds: ${FM_AI_REBUILD_INITIAL_DELAY_SECONDS:15}
+      # 空索引初始化的最大尝试次数；仅失败时重试，已有分片或成功后立即停止。
+      startup-rebuild-max-attempts: ${FM_AI_REBUILD_MAX_ATTEMPTS:12}
+      # 外部向量服务或 embedding 模型未就绪时的重试间隔秒数。
+      startup-rebuild-retry-delay-seconds: ${FM_AI_REBUILD_RETRY_DELAY_SECONDS:15}
+      # 全国行政区划约四万余条，默认不逐条生成向量；物流单仍索引地点名称快照。
+      include-administrative-divisions: ${FM_AI_INCLUDE_ADMINISTRATIVE_DIVISIONS:false}
+      # 控制知识索引规模和分片粒度；默认覆盖全国乡镇字典和业务数据，现场数据更大时可继续调高。
+      # 单次索引构建允许写入的最大知识分片数。
+      max-documents: ${FM_AI_MAX_DOCUMENTS:100000}
+      # ratel助手拼接到提示词里的最大知识上下文条数。
+      max-context-documents: ${FM_AI_MAX_CONTEXT_DOCUMENTS:5}
+      # 单个知识分片目标字符数。
+      chunk-size: ${FM_AI_CHUNK_SIZE:800}
+      # 相邻知识分片重叠字符数。
+      chunk-overlap: ${FM_AI_CHUNK_OVERLAP:120}
+      # H2 模式下 embedding 是可选增强，默认关闭以避免大字典重建时逐条调用 Ollama；Qdrant 模式会强制依赖本地 embedding。
+      # H2 向量增强开关；Qdrant 模式下即使为 false 也必须生成 embedding。
+      embedding-enabled: ${FM_AI_EMBEDDING_ENABLED:false}
+      # 智能检索 query 改写是否调用模型；关闭时只使用规则改写。
+      query-rewrite-model-enabled: ${FM_AI_QUERY_REWRITE_MODEL_ENABLED:false}
+      # 向量库提供方只允许二选一：h2 或 qdrant；默认 qdrant，不做自动降级，避免数据多份。
+      # 向量数据库提供方，支持 h2 或 qdrant，二者互斥。
+      vector-database-provider: ${FM_AI_VECTOR_DATABASE_PROVIDER:qdrant}
+      # Qdrant 为独立部署包；以下参数控制后端访问地址、集合名和保护阈值。
+      # Qdrant HTTP API baseUrl，默认指向局域网向量库服务器。
+      qdrant-base-url: ${FM_AI_QDRANT_BASE_URL:http://127.0.0.1:6333}
+      # Qdrant collection 名称。
+      qdrant-collection-name: ${FM_AI_QDRANT_COLLECTION_NAME:ratel_fm_knowledge}
+      # Qdrant 单次 HTTP 请求超时时间。
+      qdrant-request-timeout-seconds: ${FM_AI_QDRANT_TIMEOUT_SECONDS:10}
+      # Qdrant 最大并发请求数。
+      qdrant-max-concurrent-requests: ${FM_AI_QDRANT_MAX_CONCURRENT_REQUESTS:2}
+      # Qdrant HTTP 客户端固定线程数。
+      qdrant-executor-threads: ${FM_AI_QDRANT_EXECUTOR_THREADS:2}
+      # Qdrant 批量写入 point 数量。
+      qdrant-batch-size: ${FM_AI_QDRANT_BATCH_SIZE:64}
+      # Qdrant 连续失败触发熔断的阈值。
+      qdrant-failure-threshold: ${FM_AI_QDRANT_FAILURE_THRESHOLD:2}
+      # Qdrant 熔断后暂停调用的秒数。
+      qdrant-circuit-breaker-seconds: ${FM_AI_QDRANT_CIRCUIT_BREAKER_SECONDS:30}
+      # Qdrant 响应体最大读取字符数。
+      qdrant-max-response-chars: ${FM_AI_QDRANT_MAX_RESPONSE_CHARS:200000}
+    assistant:
+      # 会话上下文压缩保留最近原文轮次，其余历史由摘要承载，降低 prompt 长度。
+      # 是否启用 ratel助手多轮会话上下文。
+      conversation-enabled: ${FM_AI_ASSISTANT_CONVERSATION_ENABLED:true}
+      # 保留最近几轮用户/助手原文；一轮包含一次用户提问和一次助手回答。
+      # 多轮对话中保留原文的最近轮次数。
+      recent-raw-rounds: ${FM_AI_ASSISTANT_RECENT_RAW_ROUNDS:4}
+      # 历史会话摘要最大字符数。
+      max-summary-chars: ${FM_AI_ASSISTANT_MAX_SUMMARY_CHARS:1200}
+      # 单条用户或助手消息进入上下文前的最大字符数。
+      max-message-chars: ${FM_AI_ASSISTANT_MAX_MESSAGE_CHARS:800}
+      # 会话上下文总字符数上限。
+      max-context-chars: ${FM_AI_ASSISTANT_MAX_CONTEXT_CHARS:3000}
+      # 是否启用 ratel助手流式输出。
+      stream-enabled: ${FM_AI_ASSISTANT_STREAM_ENABLED:true}
+      # 流式连接保护：限制连接时长、心跳、全局并发和单用户并发，避免慢网络拖垮服务端。
+      # 单个流式连接最大持续秒数。
+      stream-timeout-seconds: ${FM_AI_ASSISTANT_STREAM_TIMEOUT_SECONDS:240}
+      # 服务端向客户端发送心跳的秒数间隔。
+      stream-heartbeat-seconds: ${FM_AI_ASSISTANT_STREAM_HEARTBEAT_SECONDS:10}
+      # 全系统同时存在的最大流式连接数。
+      max-concurrent-streams: ${FM_AI_ASSISTANT_MAX_CONCURRENT_STREAMS:4}
+      # 单个用户同时存在的最大流式连接数。
+      max-streams-per-user: ${FM_AI_ASSISTANT_MAX_STREAMS_PER_USER:1}
+      # 流式输出专用线程数。
+      stream-executor-threads: ${FM_AI_ASSISTANT_STREAM_EXECUTOR_THREADS:4}
+      # 流式回答落入会话历史时最多保留的字符数。
+      stream-capture-chars: ${FM_AI_ASSISTANT_STREAM_CAPTURE_CHARS:12000}
+    agent:
+      # 业务 Agent 总开关；关闭后 /api/agent/business 直接返回不可用。
+      enabled: ${FM_AI_AGENT_ENABLED:true}
+      # 关键 Agent 自检开关；开启后对权限、证据、写操作阻断和阶段合法性做服务端自检。
+      self-check-enabled: ${FM_AI_AGENT_SELF_CHECK_ENABLED:true}
+    web-search:
+      # 互联网检索是可选增强，供应商密钥必须走环境变量，不能写入配置文件。
+      # 是否启用互联网检索。
+      enabled: ${FM_AI_WEB_SEARCH_ENABLED:true}
+      # 搜索提供方，默认 Tavily。
+      provider: ${FM_AI_WEB_SEARCH_PROVIDER:tavily}
+      # Tavily Search API 地址。
+      tavily-endpoint: ${FM_AI_TAVILY_ENDPOINT:https://api.tavily.com/search}
+      # 生产环境通过 FM_AI_TAVILY_API_KEY 配置密钥，不要把真实密钥写入配置文件。
+      # Tavily API Key，默认空。
+      tavily-api-key: ${FM_AI_TAVILY_API_KEY:}
+      # Bing Search API 地址。
+      bing-endpoint: ${FM_AI_BING_ENDPOINT:https://api.bing.microsoft.com/v7.0/search}
+      # Bing Search API Key，默认空。
+      bing-api-key: ${FM_AI_BING_API_KEY:}
+      # 单次互联网检索最多返回结果条数。
+      max-results: ${FM_AI_WEB_SEARCH_MAX_RESULTS:3}
+      # 搜索接口请求超时时间。
+      request-timeout-seconds: ${FM_AI_WEB_SEARCH_TIMEOUT_SECONDS:8}
+      # 搜索接口最大并发请求数。
+      max-concurrent-requests: ${FM_AI_WEB_SEARCH_MAX_CONCURRENT_REQUESTS:2}
+      # 搜索 HTTP 客户端固定线程数。
+      executor-threads: ${FM_AI_WEB_SEARCH_EXECUTOR_THREADS:4}
+      # 搜索接口响应体最大读取字节数。
+      max-response-bytes: ${FM_AI_WEB_SEARCH_MAX_RESPONSE_BYTES:524288}
+      # 单个网页正文最大读取字节数。
+      max-page-bytes: ${FM_AI_WEB_SEARCH_MAX_PAGE_BYTES:262144}
+      # 单次搜索最多补抓正文网页数量。
+      max-fetch-pages: ${FM_AI_WEB_SEARCH_MAX_FETCH_PAGES:1}
+      # Tavily 是否返回原始网页正文，默认关闭以降低内存压力。
+      include-raw-content: ${FM_AI_TAVILY_INCLUDE_RAW_CONTENT:false}
+  system:
+    weather:
+      # 天气默认优先使用浏览器定位，失败时回退下面配置的默认坐标。
+      # 是否启用天气查询能力。
+      enabled: ${FM_WEATHER_ENABLED:true}
+      # Open-Meteo 天气 API 地址。
+      endpoint: ${FM_WEATHER_ENDPOINT:https://api.open-meteo.com/v1/forecast}
+      # 浏览器定位不可用、用户拒绝授权或经纬度异常时使用以下默认地区。
+      # 默认天气地区名称。
+      location-name: ${FM_WEATHER_LOCATION_NAME:成都}
+      # 默认天气纬度。
+      latitude: ${FM_WEATHER_LATITUDE:30.5728}
+      # 默认天气经度。
+      longitude: ${FM_WEATHER_LONGITUDE:104.0668}
+      # 天气预报返回的未来小时数。
+      forecast-hours: ${FM_WEATHER_FORECAST_HOURS:12}
+      # 天气接口请求超时时间。
+      request-timeout-seconds: ${FM_WEATHER_TIMEOUT_SECONDS:5}
+      # 天气结果缓存秒数。
+      cache-seconds: ${FM_WEATHER_CACHE_SECONDS:600}
+  security:
+    # 本地开发默认密钥必须在生产部署时通过环境变量替换。
+    # JWT 签名密钥，生产必须覆盖。
+    token-secret: ${FM_TOKEN_SECRET:ratel-fm-local-development-secret-change-me}
+    # JWT 有效期分钟数。
+    token-ttl-minutes: ${FM_TOKEN_TTL_MINUTES:60}
+    # 距离过期多少分钟内允许刷新 token。
+    token-refresh-threshold-minutes: ${FM_TOKEN_REFRESH_THRESHOLD_MINUTES:30}
+    # 浏览器保存 JWT 的 Cookie 名称。
+    token-cookie-name: ${FM_TOKEN_COOKIE_NAME:FM_TOKEN}
+  bootstrap:
+    # 首次初始化默认管理员账号；生产部署后应立即修改默认密码。
+    # 默认管理员用户名。
+    admin-username: ${FM_ADMIN_USERNAME:admin}
+    # 默认管理员密码。
+    admin-password: ${FM_ADMIN_PASSWORD:admin123}
+    # 默认管理员身份证号占位，满足人员资料唯一性校验。
+    admin-identity-no: ${FM_ADMIN_IDENTITY_NO:ADMIN_IDENTITY_0001}

@@ -1,0 +1,18 @@
+caseCode,query,expectedTypes,expectedTokens
+BASIC_DICT_001,基础信息中有青岗的, BASIC_DICTIONARY,青岗
+BASIC_DICT_002,字典里有哪些供应商, BASIC_DICTIONARY,供应商
+BASIC_DICT_003,有哪些行政区划, BASIC_DICTIONARY,行政区划
+SUBJECT_001,会计科目里有哪些银行科目, SUBJECT,银行
+VOUCHER_001,有没有包含测试摘要的凭证, VOUCHER,凭证
+PURCHASE_001,现在有没有采购单, PURCHASE_ORDER,采购
+PURCHASE_002,查采购单中的默认供应商, PURCHASE_ORDER,供应商
+PURCHASE_003,默认项目在本月的非草稿状态的采购单, PURCHASE_ORDER,PURCHASING
+SHIPMENT_001,现在有没有物流单, SHIPMENT,物流
+SHIPMENT_002,物流青岗记录在哪里, SHIPMENT,青岗
+SHIPMENT_003,查运输单发货区划青岗, SHIPMENT,青岗
+INVENTORY_001,库存流水里有没有物料, INVENTORY_LEDGER,库存
+AR_AP_001,应收应付中未结清的单据, AR_AP_BILL,未结
+CASHIER_001,出纳流水里有没有青岗收款, CASHIER_TRANSACTION,青岗
+ATTACHMENT_001,附件中有没有合同信息, ATTACHMENT,附件
+MENU_001,我能打开哪些采购功能, SYSTEM_MODULE,采购
+MENU_002,物流管理支持哪些操作, SYSTEM_MODULE,物流

@@ -1,0 +1,54 @@
+# h2-template profile 只在 Maven 打包阶段运行，用于生成便携包内置初始数据库。
+server:
+  # 端口设为 0，避免模板库生成过程占用固定业务端口。
+  # 随机端口，仅用于 Maven 打包阶段启动一次应用。
+  port: 0
+
+spring:
+  # 模板库输出到 target/h2-template，assembly 会把生成的 ratel-fm.mv.db 打入便携包。
+  # H2 示例：url=jdbc:h2:file:./target/h2-template/ratel-fm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH，driver-class-name=org.h2.Driver，database-platform=org.hibernate.dialect.H2Dialect。
+  # PostgreSQL 示例：url=jdbc:postgresql://<数据库IP>:5432/<数据库名>，driver-class-name=org.postgresql.Driver，database-platform=org.hibernate.dialect.PostgreSQLDialect；模板库生成阶段不使用 PostgreSQL。
+  datasource:
+    # 打包阶段 H2 模板库 JDBC 地址；H2 文件库格式为 jdbc:h2:file:<文件路径>;MODE=PostgreSQL...
+    url: jdbc:h2:file:./target/h2-template/ratel-fm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    # H2 模板库用户名。
+    username: sa
+    # H2 模板库密码，默认空。
+    password:
+    # H2 JDBC 驱动类，固定为 org.h2.Driver；PostgreSQL 场景应使用 org.postgresql.Driver。
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # 模板库需要按实体自动建表，随后 DataInitializer 写入默认菜单、角色和字典。
+      # Hibernate DDL 策略，模板库生成时必须允许建表和补字段。
+      ddl-auto: update
+    # H2 模板库使用 H2 方言 org.hibernate.dialect.H2Dialect；PostgreSQL 场景应使用 org.hibernate.dialect.PostgreSQLDialect。
+    database-platform: org.hibernate.dialect.H2Dialect
+
+logging:
+  level:
+    # 打包阶段只保留必要日志，减少构建输出噪声。
+    # 根日志级别。
+    root: WARN
+    # Ratel FM 业务包日志级别，保留初始化进度。
+    com.ratel.fm: INFO
+
+app:
+  ai:
+    knowledge:
+      # 模板库生成阶段只内置关系型初始化数据，不连接独立 Qdrant 或调用 Ollama。
+      # 是否在知识向量库为空时自动重建索引。
+      auto-rebuild-when-empty: false
+  h2-template:
+    # 模板库生成完成后自动退出 Spring Boot 进程，避免 Maven 打包卡住。
+    # 是否在模板库初始化完成后退出应用。
+    exit-after-startup: true
+  database:
+    initializer:
+      # H2 模板库需要执行数据库兼容、索引和初始化数据补齐。
+      # 是否执行通用数据库初始化器。
+      enabled: true
+    postgresql-initializer:
+      # H2 模板库不执行 PostgreSQL comment on table/column 初始化。
+      # 是否执行 PostgreSQL 专用初始化器。
+      enabled: false

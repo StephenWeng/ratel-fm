@@ -1,0 +1,7 @@
+Qdrant is distributed under the Apache License 2.0.
+
+Project: https://github.com/qdrant/qdrant
+Releases: https://github.com/qdrant/qdrant/releases
+
+This package bundles or expects the official Qdrant Windows x64 MSVC binary:
+qdrant-x86_64-pc-windows-msvc.zip

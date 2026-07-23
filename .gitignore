@@ -1,0 +1,61 @@
+##ignore this file##
+/target/
+/frontend/node_modules/
+/frontend/node/
+/frontend/npm/
+/frontend/dist/
+
+.classpath
+.project
+.settings     
+ ##filter databfile、sln file##
+*.mdb  
+*.ldb  
+*.sln   
+##class file##
+*.com  
+*.class  
+*.dll  
+*.exe  
+*.o  
+*.so 
+# compression file
+*.7z  
+*.dmg  
+*.gz  
+*.iso  
+*.jar  
+*.rar  
+*.tar  
+*.zip  
+*.via
+*.tmp
+*.err
+# OS generated files #  
+.DS_Store  
+.DS_Store?  
+._*  
+.Spotlight-V100  
+.Trashes  
+Icon?  
+ehthumbs.db  
+Thumbs.db
+# factorypath #
+.factorypath
+# txlcn #
+.txlcn
+# logs #
+/logs/
+
+# portable AI/runtime payloads are packaged outside the source repository
+/ollama-models/*
+!/ollama-models/.keep
+/src/main/ollama-package/models/
+/src/main/ollama-package/runtime/
+/src/main/ollama-package/logs/
+/src/main/qdrant-package/runtime/
+/src/main/qdrant-package/logs/
+
+# local secrets #
+/config/
+!.gitkeep

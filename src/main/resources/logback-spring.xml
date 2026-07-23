@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 引入 Spring Boot 默认日志格式和控制台 appender，保持本地开发输出一致。 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- LOG_HOME 可由部署脚本指定；默认写入当前工作目录 logs，便携包脚本会指向包内 logs。 -->
+    <property name="LOG_HOME" value="${LOG_HOME:-logs}"/>
+
+    <!-- 系统日志按大小和日期滚动，避免长期运行后单个日志文件过大。 -->
+    <appender name="SYSTEM_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 主系统日志文件路径。 -->
+        <file>${LOG_HOME}/system.log</file>
+        <encoder>
+            <!-- 系统日志格式：时间、级别、线程、logger 和消息。 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger - %msg%n</pattern>
+            <!-- 日志文件统一使用 UTF-8，避免中文部署环境乱码。 -->
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 历史系统日志按日期和序号压缩保存。 -->
+            <fileNamePattern>${LOG_HOME}/system.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- 单个系统日志文件最大大小。 -->
+            <maxFileSize>100MB</maxFileSize>
+            <!-- 系统日志保留天数。 -->
+            <maxHistory>10</maxHistory>
+            <!-- 应用启动时清理超过保留期的历史日志。 -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 业务操作审计日志单独落盘，便于按用户、模块和时间排查关键业务行为。 -->
+    <appender name="OPERATION_AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 操作审计日志文件路径。 -->
+        <file>${LOG_HOME}/operation-audit.log</file>
+        <encoder>
+            <!-- 审计日志格式和系统日志保持一致，便于统一检索。 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger - %msg%n</pattern>
+            <!-- 审计日志统一使用 UTF-8，确保姓名、部门和业务模块中文可读。 -->
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 历史审计日志按日期和序号压缩保存。 -->
+            <fileNamePattern>${LOG_HOME}/operation-audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- 单个审计日志文件最大大小。 -->
+            <maxFileSize>100MB</maxFileSize>
+            <!-- 审计日志保留天数。 -->
+            <maxHistory>10</maxHistory>
+            <!-- 应用启动时清理超过保留期的历史审计日志。 -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 审计 logger 保持 additivity，既写审计文件，也能进入系统日志用于统一排查。 -->
+    <logger name="com.ratel.fm.audit.operation" level="INFO" additivity="true">
+        <!-- 将审计 logger 绑定到独立审计文件 appender。 -->
+        <appender-ref ref="OPERATION_AUDIT_FILE"/>
+    </logger>
+    <!-- 业务包默认 INFO；SQL 明细默认 WARN，避免敏感参数和大量 SQL 刷屏。 -->
+    <logger name="com.ratel.fm" level="INFO"/>
+    <!-- Hibernate SQL 语句默认 WARN，排查 SQL 时可临时改为 DEBUG。 -->
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <!-- 根日志同时输出到控制台和系统文件。 -->
+    <root level="INFO">
+        <!-- Spring Boot 默认控制台 appender。 -->
+        <appender-ref ref="CONSOLE"/>
+        <!-- 系统文件 appender。 -->
+        <appender-ref ref="SYSTEM_FILE"/>
+    </root>
+</configuration>

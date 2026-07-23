@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Qdrant 独立部署包。
+  包内包含 Qdrant Windows/Linux x64 运行时、按操作系统分目录的独立启停脚本及数据目录占位；
+  Ratel FM 仅通过 HTTP 访问 Qdrant，不在主应用脚本中联动启停。
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>qdrant</id>
+    <formats>
+        <!-- 输出 zip，方便和主应用、Ollama 独立包一起放在桌面解压部署。 -->
+        <format>zip</format>
+    </formats>
+    <!-- 独立包保留顶层目录，避免解压时污染同级目录。 -->
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <!-- 固定目录名，主应用总控脚本按该名称自动发现 Qdrant 包。 -->
+    <baseDirectory>ratel-fm-qdrant</baseDirectory>
+
+    <fileSets>
+        <!-- 两个平台运行时、脚本、README 和持久化目录占位。 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/qdrant-package</directory>
+            <outputDirectory>.</outputDirectory>
+            <!-- 保留 run/logs/storage/snapshots 等占位文件，确保空目录进入 zip。 -->
+            <useDefaultExcludes>false</useDefaultExcludes>
+        </fileSet>
+    </fileSets>
+</assembly>
