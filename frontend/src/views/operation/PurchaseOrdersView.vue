@@ -57,7 +57,6 @@
             <el-button v-if="auth.hasMenu('BTN_PURCHASE_CREATE')" type="primary" :icon="Plus" @click="openCreate">新增采购单</el-button>
             <el-button v-if="auth.hasMenu('BTN_PURCHASE_BATCH_DELETE') && selectedRows.length > 0" type="danger" :icon="Delete" @click="batchRemove">批量删除</el-button>
             <el-button v-if="auth.hasMenu('BTN_PURCHASE_EXPORT')" :icon="Download" :loading="exporting" @click="exportRows">导出</el-button>
-            <el-button v-if="agentEnabled" @click="openAgent">Agent 分析</el-button>
           </el-form-item>
         </el-col>
       </el-row>
@@ -346,14 +345,6 @@
     </el-dialog>
 
     <OperationLogDrawer ref="operationLogDrawerRef" />
-    <el-dialog v-model="agentDialogVisible" title="采购 Agent 分析" width="min(980px, 94vw)" top="6vh">
-      <BusinessAgentPanel
-        ref="businessAgentRef"
-        :question="agentQuestion"
-        :modules="['purchase', 'inventory', 'arAp', 'finance', 'workflow']"
-        :agent-types="['query', 'reconciliation', 'voucherSuggestion', 'businessAnalysis']"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -366,7 +357,6 @@ import { Delete, Download, Plus } from '@element-plus/icons-vue'
 import AttachmentList from '@/components/attachments/AttachmentList.vue'
 import AmountText from '@/components/common/AmountText.vue'
 import OperationLogDrawer from '@/components/operation-log/OperationLogDrawer.vue'
-import BusinessAgentPanel from '@/components/agent/BusinessAgentPanel.vue'
 import { api } from '@/api/fm'
 import { saveBlob } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -538,9 +528,6 @@ const cancelFormRef = ref<FormInstance>()
  * 常量 operationLogDrawerRef：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
 const operationLogDrawerRef = ref<InstanceType<typeof OperationLogDrawer>>()
-const businessAgentRef = ref<InstanceType<typeof BusinessAgentPanel>>()
-const agentDialogVisible = ref(false)
-const agentEnabled = ref(false)
 /**
  * 常量 dialogVisible：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -1975,35 +1962,8 @@ async function batchRemove() {
 
 onMounted(async () => {
   applyRouteQuery()
-  await Promise.all([
-    load(),
-    refreshDictionaryOptions(),
-    loadAgentEnabled()
-  ])
+  await Promise.all([load(), refreshDictionaryOptions()])
 })
-
-async function loadAgentEnabled() {
-  agentEnabled.value = await api.businessAgentEnabled().catch(() => false)
-}
-
-const agentQuestion = computed(() => {
-  const parts = ['分析采购单的审批、收货、库存、应付和凭证风险']
-  if (filters.orderNo.trim()) parts.push(`采购单号${filters.orderNo.trim()}`)
-  if (filters.supplierName) parts.push(`供应商${filters.supplierName}`)
-  if (filters.projectCode) parts.push(`项目编码${filters.projectCode}`)
-  return parts.join('，')
-})
-
-async function openAgent() {
-  agentDialogVisible.value = true
-  await businessAgentRef.value?.runAgent({
-    question: agentQuestion.value,
-    modules: ['purchase', 'inventory', 'arAp', 'finance', 'workflow'],
-    agentTypes: ['query', 'reconciliation', 'voucherSuggestion', 'businessAnalysis'],
-    stage: 'readOnly',
-    limit: 5
-  })
-}
 
 /**
  * 重新读取采购页面使用的全部基础字典。

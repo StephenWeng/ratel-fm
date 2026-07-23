@@ -68,7 +68,6 @@
                 <el-button v-if="auth.hasMenu('BTN_INVENTORY_CREATE')" type="primary" :icon="Plus" @click="openCreate">新增流水</el-button>
                 <el-button v-if="auth.hasMenu('BTN_INVENTORY_BATCH_DELETE') && selectedRows.length > 0" type="danger" :icon="Delete" @click="batchRemove">批量删除</el-button>
                 <el-button v-if="auth.hasMenu('BTN_INVENTORY_EXPORT')" :icon="Download" :loading="exporting" @click="exportRows">导出</el-button>
-                <el-button v-if="agentEnabled" @click="openAgent">Agent 分析</el-button>
               </el-form-item>
             </el-col>
           </el-row>
@@ -215,14 +214,6 @@
       />
     </el-dialog>
     <OperationLogDrawer ref="operationLogDrawerRef" />
-    <el-dialog v-model="agentDialogVisible" title="库存 Agent 分析" width="min(980px, 94vw)" top="6vh">
-      <BusinessAgentPanel
-        ref="businessAgentRef"
-        :question="agentQuestion"
-        :modules="['inventory', 'purchase', 'finance']"
-        :agent-types="['query', 'inventoryRisk', 'reconciliation', 'businessAnalysis']"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -234,7 +225,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import AttachmentList from '@/components/attachments/AttachmentList.vue'
 import OperationLogDrawer from '@/components/operation-log/OperationLogDrawer.vue'
-import BusinessAgentPanel from '@/components/agent/BusinessAgentPanel.vue'
 import { api } from '@/api/fm'
 import { saveBlob } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -301,9 +291,6 @@ const manageAttachmentRef = ref<InstanceType<typeof AttachmentList>>()
  * 常量 operationLogDrawerRef：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
 const operationLogDrawerRef = ref<InstanceType<typeof OperationLogDrawer>>()
-const businessAgentRef = ref<InstanceType<typeof BusinessAgentPanel>>()
-const agentDialogVisible = ref(false)
-const agentEnabled = ref(false)
 /**
  * 常量 rows：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -1036,35 +1023,8 @@ async function loadDictionaryOptions() {
 }
 onMounted(async () => {
   applyRouteQuery()
-  await Promise.all([load(), refreshDictionaryOptions(), loadMaterialStock(), loadAgentEnabled()])
+  await Promise.all([load(), refreshDictionaryOptions(), loadMaterialStock()])
 })
-
-/**
- * 读取业务 Agent 开关，用于关闭时隐藏库存页 Agent 入口并避免触发后端 Agent。
- */
-async function loadAgentEnabled() {
-  agentEnabled.value = await api.businessAgentEnabled().catch(() => false)
-}
-
-const agentQuestion = computed(() => {
-  const parts = ['分析库存负库存、低库存、调拨异常、采购收货未入库和凭证风险']
-  if (filters.movementNo.trim()) parts.push(`库存流水号${filters.movementNo.trim()}`)
-  if (filters.relatedBizNo.trim()) parts.push(`关联单号${filters.relatedBizNo.trim()}`)
-  if (filters.projectCode) parts.push(`项目编码${filters.projectCode}`)
-  if (filters.itemName.trim()) parts.push(`物料${filters.itemName.trim()}`)
-  return parts.join('，')
-})
-
-async function openAgent() {
-  agentDialogVisible.value = true
-  await businessAgentRef.value?.runAgent({
-    question: agentQuestion.value,
-    modules: ['inventory', 'purchase', 'finance'],
-    agentTypes: ['query', 'inventoryRisk', 'reconciliation', 'businessAnalysis'],
-    stage: 'readOnly',
-    limit: 5
-  })
-}
 
 /**
  * 重新读取库存页面使用的全部基础字典。

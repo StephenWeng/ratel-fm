@@ -7,7 +7,7 @@
 ```text
 ratel-fm-ollama
 ├── bin/windows           # Windows 原生 .bat 启动、关闭脚本
-├── bin/linux             # Linux .sh 启动、关闭脚本
+├── bin/linux             # Linux .sh 启动、关闭、状态脚本
 ├── data/open-webui       # Open WebUI 数据目录，保存账号、会话和页面配置
 ├── logs                  # Ollama/Open WebUI 控制台日志目录，启动脚本自动创建或使用
 ├── models                # Ollama 模型目录，启动脚本默认设置 OLLAMA_MODELS 指向这里
@@ -41,6 +41,7 @@ Linux：
 ```bash
 chmod +x bin/linux/*.sh runtime/linux/ollama/ollama
 bin/linux/start.sh
+bin/linux/status.sh
 bin/linux/stop.sh
 ```
 
@@ -94,7 +95,9 @@ http://10.105.12.136:8080
 
 Open WebUI 用于在浏览器里查看和调用 Ollama 模型，不承载 Ratel FM 的业务权限和业务数据。启动脚本会先启动 Ollama，再启动 Open WebUI；关闭脚本会先停止 Open WebUI，再停止 Ollama。Open WebUI 启动失败只输出警告，不会影响 Ollama 服务继续运行。
 
-Open WebUI 0.10.2 使用独立包内的 Python 3.11.9 `runtime/python/python.exe` 和 `runtime/open-webui/site-packages`。部署机不需要安装 Python，启动脚本也不会修改系统 PATH、写入注册表或执行在线 `pip install`。这两部分运行时由 `src/main/resources/build-ollama.bat` 在构建机准备并打入 ZIP；如果包内运行时不完整，Open WebUI 会明确跳过。
+Windows Open WebUI 0.10.2 使用独立包内的 Python 3.11.9 `runtime/python/python.exe` 和 `runtime/open-webui/site-packages`。部署机不需要安装 Python，启动脚本也不会修改系统 PATH、写入注册表或执行在线 `pip install`。这两部分运行时由 `src/main/resources/build-ollama.bat` 在构建机准备并打入 ZIP；如果包内运行时不完整，Open WebUI 会明确跳过。
+
+Linux 独立包默认内置 Ollama Linux x64 运行时并可直接启动模型服务。Linux Open WebUI 需要 `runtime/python-linux/bin/python3` 和 `runtime/open-webui/site-packages-linux` 两个目录同时存在才会启动；未内置时脚本只跳过 Open WebUI，不影响 Ollama 服务。
 
 Open WebUI 默认监听 `0.0.0.0:8080`，便于其它电脑访问。Windows BAT 会尝试创建 11434 和 8080 防火墙规则；普通权限创建失败时只告警并继续启动，本机访问不受影响。Open WebUI 连接 Ollama 的地址默认使用本机探测地址 `http://127.0.0.1:11434`，因为两者在同一台电脑上运行。
 

@@ -74,7 +74,7 @@ ensure_open_webui_installed() {
   local python_exe="$base_dir/runtime/python-linux/bin/python3"
   local site_packages="$base_dir/runtime/open-webui/site-packages-linux"
   if [[ ! -x "$python_exe" || ! -d "$site_packages/open_webui" ]]; then
-    echo "Bundled Linux Python runtime not found; Open WebUI is disabled." >&2
+    echo "Bundled Linux Open WebUI runtime not found; Open WebUI is skipped." >&2
     return 1
   fi
   if ! PYTHONPATH="$site_packages" "$python_exe" - <<'PY' >/dev/null 2>&1

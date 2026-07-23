@@ -8,7 +8,6 @@
       <div class="header-actions">
         <el-segmented v-model="sourceType" :options="sourceTypeOptions" />
         <el-button v-if="auth.hasMenu('BTN_ACCOUNTING_SOURCE_QUERY')" type="primary" @click="loadSources">刷新来源</el-button>
-        <el-button v-if="agentEnabled" @click="openAgent">Agent 分析</el-button>
       </div>
     </div>
 
@@ -115,14 +114,6 @@
         </el-form>
       </section>
     </div>
-    <el-dialog v-model="agentDialogVisible" title="会计平台 Agent 分析" width="min(980px, 94vw)" top="6vh">
-      <BusinessAgentPanel
-        ref="businessAgentRef"
-        :question="agentQuestion"
-        :modules="['purchase', 'inventory', 'arAp', 'finance']"
-        :agent-types="['voucherSuggestion', 'reconciliation', 'query', 'businessAnalysis']"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -131,7 +122,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api/fm'
 import AmountText from '@/components/common/AmountText.vue'
-import BusinessAgentPanel from '@/components/agent/BusinessAgentPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { AccountingSourceType, AccountingSourceView, SubjectView } from '@/types/api'
 import { buildSubjectCascaderOptions, subjectCascaderProps, subjectNamePath } from '@/utils/subjects'
@@ -165,9 +155,6 @@ const loading = ref(false)
  * 常量 submitting：表示自动生成凭证接口是否正在提交。
  */
 const submitting = ref(false)
-const businessAgentRef = ref<InstanceType<typeof BusinessAgentPanel>>()
-const agentDialogVisible = ref(false)
-const agentEnabled = ref(false)
 
 /**
  * 常量 sources：保存会计平台业务来源行。
@@ -209,13 +196,6 @@ const form = reactive({
  */
 const canSubmit = computed(() => Boolean(currentSource.value && form.debitSubjectId && form.creditSubjectId && form.debitSubjectId !== form.creditSubjectId))
 
-const agentQuestion = computed(() => {
-  const parts = ['分析会计平台业务来源的制证建议、对账链路和凭证风险', `来源类型${sourceType.value}`]
-  if (currentSource.value?.sourceNo) parts.push(`来源单号${currentSource.value.sourceNo}`)
-  if (currentSource.value?.partnerName) parts.push(`往来单位${currentSource.value.partnerName}`)
-  return parts.join('，')
-})
-
 /**
  * 加载会计平台业务来源。
  *
@@ -248,24 +228,6 @@ async function loadSubjects() {
   ])
   allSubjects.value = allRows
   subjectOptions.value = businessRows
-}
-
-/**
- * 读取业务 Agent 开关，用于关闭时隐藏会计平台 Agent 入口并避免触发后端 Agent。
- */
-async function loadAgentEnabled() {
-  agentEnabled.value = await api.businessAgentEnabled().catch(() => false)
-}
-
-async function openAgent() {
-  agentDialogVisible.value = true
-  await businessAgentRef.value?.runAgent({
-    question: agentQuestion.value,
-    modules: ['purchase', 'inventory', 'arAp', 'finance'],
-    agentTypes: ['voucherSuggestion', 'reconciliation', 'query', 'businessAnalysis'],
-    stage: 'readOnly',
-    limit: 5
-  })
 }
 
 /**
@@ -346,7 +308,7 @@ function subjectName(subjectId?: number) {
 watch(sourceType, loadSources)
 
 onMounted(async () => {
-  await Promise.all([loadSubjects(), loadSources(), loadAgentEnabled()])
+  await Promise.all([loadSubjects(), loadSources()])
 })
 </script>
 

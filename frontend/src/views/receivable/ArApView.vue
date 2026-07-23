@@ -61,7 +61,6 @@
             <el-button v-if="auth.hasMenu('BTN_AR_AP_CREATE')" type="primary" :icon="Plus" @click="openCreate">新增单据</el-button>
             <el-button v-if="auth.hasMenu('BTN_AR_AP_BATCH_DELETE') && selectedRows.length > 0" type="danger" :icon="Delete" @click="batchRemove">批量删除</el-button>
             <el-button v-if="auth.hasMenu('BTN_AR_AP_EXPORT')" :icon="Download" :loading="exporting" @click="exportRows">导出</el-button>
-            <el-button v-if="agentEnabled" @click="openAgent">Agent 分析</el-button>
           </el-form-item>
         </el-col>
       </el-row>
@@ -327,14 +326,6 @@
       </template>
     </el-dialog>
     <OperationLogDrawer ref="operationLogDrawerRef" />
-    <el-dialog v-model="agentDialogVisible" title="应收应付 Agent 分析" width="min(980px, 94vw)" top="6vh">
-      <BusinessAgentPanel
-        ref="businessAgentRef"
-        :question="agentQuestion"
-        :modules="['arAp', 'finance', 'workflow']"
-        :agent-types="['query', 'dueReminder', 'reconciliation', 'voucherSuggestion', 'businessAnalysis']"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -347,7 +338,6 @@ import type { FormInstance, FormRules } from 'element-plus'
 import AttachmentList from '@/components/attachments/AttachmentList.vue'
 import AmountText from '@/components/common/AmountText.vue'
 import OperationLogDrawer from '@/components/operation-log/OperationLogDrawer.vue'
-import BusinessAgentPanel from '@/components/agent/BusinessAgentPanel.vue'
 import { api } from '@/api/fm'
 import { saveBlob } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -431,9 +421,6 @@ const settlementFormRef = ref<FormInstance>()
  * 常量 operationLogDrawerRef：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
 const operationLogDrawerRef = ref<InstanceType<typeof OperationLogDrawer>>()
-const businessAgentRef = ref<InstanceType<typeof BusinessAgentPanel>>()
-const agentDialogVisible = ref(false)
-const agentEnabled = ref(false)
 /**
  * 常量 selectedRows：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -1574,38 +1561,11 @@ async function batchRemove() {
 }
 onMounted(async () => {
   applyRouteQuery()
-  await Promise.all([load(), refreshDictionaryOptions(), loadAgentEnabled()])
+  await Promise.all([load(), refreshDictionaryOptions()])
   if (activeTab.value === 'paymentStats') {
     await loadPaymentStats()
   }
 })
-
-/**
- * 读取业务 Agent 开关，用于关闭时隐藏应收应付页 Agent 入口并避免触发后端 Agent。
- */
-async function loadAgentEnabled() {
-  agentEnabled.value = await api.businessAgentEnabled().catch(() => false)
-}
-
-const agentQuestion = computed(() => {
-  const parts = ['分析应收应付到期、逾期、未核销、收付核销、凭证和经营风险']
-  if (filters.billNo.trim()) parts.push(`单号${filters.billNo.trim()}`)
-  if (filters.partnerName) parts.push(`往来单位${filters.partnerName}`)
-  if (filters.projectCode) parts.push(`项目编码${filters.projectCode}`)
-  if (filters.status) parts.push(`状态${filters.status}`)
-  return parts.join('，')
-})
-
-async function openAgent() {
-  agentDialogVisible.value = true
-  await businessAgentRef.value?.runAgent({
-    question: agentQuestion.value,
-    modules: ['arAp', 'finance', 'workflow'],
-    agentTypes: ['query', 'dueReminder', 'reconciliation', 'voucherSuggestion', 'businessAnalysis'],
-    stage: 'readOnly',
-    limit: 5
-  })
-}
 
 /**
  * 重新读取应收应付页面使用的全部基础字典。

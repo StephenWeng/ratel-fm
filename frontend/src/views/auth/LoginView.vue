@@ -171,9 +171,19 @@ async function submit() {
     }
     ElMessage.success('登录成功')
     router.replace(firstAuthorizedPath())
+  } catch (error) {
+    ElMessage.error(loginErrorMessage(error))
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 提取登录失败提示，确保账号或密码错误时登录页本身给出可见反馈。
+ */
+function loginErrorMessage(error: unknown) {
+  const message = String((error as Error | undefined)?.message || '').trim()
+  return message || '登录失败，请检查所属公司、账号和密码后重试。'
 }
 
 /**

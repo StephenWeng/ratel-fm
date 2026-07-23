@@ -24,6 +24,7 @@
             <outputDirectory>.</outputDirectory>
             <!-- 保留 run/logs/storage/snapshots 等占位文件，确保空目录进入 zip。 -->
             <useDefaultExcludes>false</useDefaultExcludes>
+            <fileMode>0755</fileMode>
         </fileSet>
     </fileSets>
 </assembly>

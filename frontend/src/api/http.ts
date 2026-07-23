@@ -339,7 +339,7 @@ export async function getData<T>(url: string, params?: Record<string, unknown>, 
  * 2. 完成对应的校验、接口调用或数据转换；
  * 3. 更新页面状态或返回处理结果。
  */
-export async function postData<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function postData<T>(url: string, data?: unknown, config?: RatelRequestConfig): Promise<T> {
   /**
    * 常量 response：保存当前模块的页面状态、配置项、接口实例或计算结果。
    */

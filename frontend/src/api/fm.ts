@@ -303,7 +303,7 @@ export const api = {
   /**
    * 字段 login：表示表单、筛选条件、接口数据或组件状态中的 login 值。
    */
-  login: (payload: LoginPayload) => postData<LoginResponse>('/api/auth/login', payload),
+  login: (payload: LoginPayload) => postData<LoginResponse>('/api/auth/login', payload, { silentErrorNotice: true }),
   /**
    * 字段 loginCompanies：登录前读取启用所属公司账套列表，只返回 ORGANIZATION 字典下的公司节点。
    */

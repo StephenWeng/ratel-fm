@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page search-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">智能检索</h1>
@@ -14,36 +14,40 @@
       <el-button v-if="auth.hasMenu('BTN_SEARCH_QUERY')" type="primary" :icon="Search" :loading="loading" @click="load">检索</el-button>
     </div>
 
-    <div class="panel">
-      <div v-if="lastResponse" class="search-meta">
-        <span>{{ modeLabel(lastResponse.mode) }}</span>
-        <span>结果 {{ lastResponse.total }} 条</span>
-        <el-tag size="small" :type="lastResponse.aiEnabled ? 'success' : 'warning'">{{ lastResponse.aiEnabled ? '语义检索可用' : '仅关键词检索' }}</el-tag>
+    <div class="panel search-results-panel">
+      <div class="search-results-head">
+        <div v-if="lastResponse" class="search-meta">
+          <span>{{ modeLabel(lastResponse.mode) }}</span>
+          <span>结果 {{ lastResponse.total }} 条</span>
+          <el-tag size="small" :type="lastResponse.aiEnabled ? 'success' : 'warning'">{{ lastResponse.aiEnabled ? '语义检索可用' : '仅关键词检索' }}</el-tag>
+        </div>
+        <div v-if="lastResponse?.rewrittenQueries?.length" class="rewrite-meta">
+          <span>改写检索</span>
+          <el-tag v-for="item in lastResponse.rewrittenQueries" :key="item" size="small" effect="plain">{{ item }}</el-tag>
+        </div>
       </div>
-      <div v-if="lastResponse?.rewrittenQueries?.length" class="rewrite-meta">
-        <span>改写检索</span>
-        <el-tag v-for="item in lastResponse.rewrittenQueries" :key="item" size="small" effect="plain">{{ item }}</el-tag>
+      <div class="search-table-wrap">
+        <el-table v-loading="loading" class="search-table" height="100%" :data="results" stripe empty-text="暂无结果">
+          <el-table-column label="类型" width="120">
+            <template #default="{ row }"><el-tag>{{ row.category || typeLabel(row.type) }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="编码/单号" min-width="160">
+            <template #default="{ row }">
+              <span v-html="highlightText(row.sourceNo || '')"></span>
+            </template>
+          </el-table-column>
+          <el-table-column label="内容" min-width="420">
+            <template #default="{ row }">
+              <div class="result-title" v-html="highlightText(row.title)"></div>
+              <div class="result-summary" v-html="highlightText(row.summary)"></div>
+              <div v-if="contentExcerpt(row)" class="result-content" v-html="highlightText(contentExcerpt(row))"></div>
+            </template>
+          </el-table-column>
+          <el-table-column label="评分" width="100" align="right">
+            <template #default="{ row }">{{ percent(row.score) }}</template>
+          </el-table-column>
+        </el-table>
       </div>
-      <el-table v-loading="loading" :data="results" stripe empty-text="暂无结果">
-        <el-table-column label="类型" width="120">
-          <template #default="{ row }"><el-tag>{{ row.category || typeLabel(row.type) }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="编码/单号" min-width="160">
-          <template #default="{ row }">
-            <span v-html="highlightText(row.sourceNo || '')"></span>
-          </template>
-        </el-table-column>
-        <el-table-column label="内容" min-width="420">
-          <template #default="{ row }">
-            <div class="result-title" v-html="highlightText(row.title)"></div>
-            <div class="result-summary" v-html="highlightText(row.summary)"></div>
-            <div v-if="contentExcerpt(row)" class="result-content" v-html="highlightText(contentExcerpt(row))"></div>
-          </template>
-        </el-table-column>
-        <el-table-column label="评分" width="100" align="right">
-          <template #default="{ row }">{{ percent(row.score) }}</template>
-        </el-table-column>
-      </el-table>
     </div>
   </div>
 </template>
@@ -380,6 +384,12 @@ async function rebuild() {
 </script>
 
 <style scoped>
+.search-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .search-band {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto auto;
@@ -390,6 +400,38 @@ async function rebuild() {
   border-radius: 6px;
   background: #fff;
 }
+
+.search-results-panel {
+  flex: 1 1 auto;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.search-results-head {
+  flex: 0 0 auto;
+  padding: 0 0 8px;
+}
+
+.search-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 72px;
+}
+
+.search-table {
+  height: 100%;
+}
+
+.search-table :deep(.el-table__inner-wrapper) {
+  min-height: 0;
+}
+
+.search-table :deep(.el-table__body-wrapper) {
+  overflow-y: auto;
+}
+
 .search-meta {
   display: flex;
   gap: 12px;
@@ -430,8 +472,16 @@ async function rebuild() {
   color: #854d0e;
 }
 @media (max-width: 760px) {
+  .search-page {
+    overflow: auto;
+  }
+
   .search-band {
     grid-template-columns: 1fr;
+  }
+
+  .search-results-panel {
+    min-height: 520px;
   }
 }
 </style>

@@ -45,21 +45,6 @@
             <div v-if="message.response && canEnterAnswer(message.response)" class="answer-action">
               <el-button size="small" type="primary" @click="enterResponse(message.response)">进入</el-button>
             </div>
-            <div v-if="responseCitations(message.response).length" class="citation-list">
-              <div v-for="(item, index) in responseCitations(message.response)" :key="item.id || `${item.type}-${index}`" class="citation-item">
-                <div class="citation-title">
-                  <el-tag size="small">{{ item.category }}</el-tag>
-                  <span>{{ item.title }}</span>
-                  <el-button v-if="canEnterCitation(item)" size="small" link type="primary" @click="enter(item)">进入</el-button>
-                  <small>{{ Math.round(item.score * 100) }}%</small>
-                </div>
-                <a v-if="item.url" class="citation-link" :href="item.url" target="_blank" rel="noopener noreferrer">{{ item.url }}</a>
-                <p>{{ item.summary }}</p>
-              </div>
-            </div>
-            <div v-if="responseSuggestions(message.response).length" class="suggestions">
-              <el-tag v-for="item in responseSuggestions(message.response)" :key="item" size="small" effect="plain">{{ item }}</el-tag>
-            </div>
           </div>
         </div>
       </main>
@@ -84,7 +69,7 @@
           maxlength="500"
           show-word-limit
           :disabled="loading"
-          :placeholder="loading ? '正在检索' : '输入问题'"
+          placeholder="输入问题"
           @keyup.enter.exact="ask"
         />
         <el-button type="primary" :icon="Promotion" :loading="loading" @click="ask">发送</el-button>
@@ -101,7 +86,7 @@ import { useRouter } from 'vue-router'
 import { api } from '@/api/fm'
 import SystemLogo from '@/components/brand/SystemLogo.vue'
 import type { AiAssistantResponse, AiConversationMessage } from '@/types/api'
-import { canEnterAnswer, canEnterCitation, enterAnswer, enterCitation } from '@/utils/aiNavigation'
+import { canEnterAnswer, enterAnswer } from '@/utils/aiNavigation'
 
 /**
  * AssistantMessage 类型定义，用于约束页面状态、接口入参或接口返回数据结构。
@@ -609,20 +594,6 @@ function emptyAssistantResponse(question: string, mode: AiAssistantResponse['mod
 }
 
 /**
- * 读取引用来源数组，兼容异常响应未返回 citations 的情况。
- */
-function responseCitations(response?: AiAssistantResponse) {
-  return Array.isArray(response?.citations) ? response.citations : []
-}
-
-/**
- * 读取建议数组，兼容异常响应未返回 suggestions 的情况。
- */
-function responseSuggestions(response?: AiAssistantResponse) {
-  return Array.isArray(response?.suggestions) ? response.suggestions : []
-}
-
-/**
  * 构造发送给服务端的会话上下文。
  */
 function assistantContext() {
@@ -727,19 +698,6 @@ function fallbackCopyText(text: string) {
   textarea.select()
   document.execCommand('copy')
   document.body.removeChild(textarea)
-}
-
-/**
- * 执行 enter 方法。
- * 
- * 实现步骤：
- * 1. 读取当前页面状态或调用参数；
- * 2. 完成对应的校验、接口调用或数据转换；
- * 3. 更新页面状态或返回处理结果。
- */
-async function enter(item: AiAssistantResponse['citations'][number]) {
-  visible.value = false
-  await enterCitation(router, item)
 }
 
 /**
@@ -961,98 +919,10 @@ async function enterResponse(response: AiAssistantResponse) {
   font-size: 13px;
 }
 
-.citation-list {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  margin-top: 10px;
-}
-
 .answer-action {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
-}
-
-.citation-item {
-  min-width: 0;
-  max-width: 100%;
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--subtle-surface-color);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.citation-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  color: var(--heading-color);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.citation-title :deep(.el-tag) {
-  min-width: 0;
-  max-width: 42%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.citation-title span {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.citation-title small {
-  flex: 0 0 auto;
-  margin-left: auto;
-  color: var(--muted-text-color);
-  font-weight: 400;
-}
-
-.citation-link {
-  display: block;
-  margin-top: 6px;
-  color: var(--info-color);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  text-decoration: none;
-}
-
-.citation-link:hover {
-  text-decoration: underline;
-}
-
-.citation-item p {
-  margin-top: 6px;
-  color: var(--muted-text-color);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-  margin-top: 10px;
-}
-
-.suggestions :deep(.el-tag) {
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .ai-panel-footer {

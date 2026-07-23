@@ -22,6 +22,7 @@
         <fileSet>
             <directory>${project.basedir}/src/main/ollama-package</directory>
             <outputDirectory>.</outputDirectory>
+            <fileMode>0755</fileMode>
             <excludes>
                 <!-- models 目录由工程根目录 ollama-models 注入，避免打入占位目录。 -->
                 <exclude>models/**</exclude>
@@ -32,6 +33,7 @@
             <directory>${project.basedir}/ollama-models</directory>
             <outputDirectory>models</outputDirectory>
             <useDefaultExcludes>false</useDefaultExcludes>
+            <fileMode>0644</fileMode>
         </fileSet>
     </fileSets>
 </assembly>

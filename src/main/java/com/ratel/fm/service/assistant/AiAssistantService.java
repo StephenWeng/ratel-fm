@@ -212,7 +212,9 @@ public class AiAssistantService {
                 .map(this::toCitation)
                 .toList());
         String directAnswer = null;
-        if (requiresExactLocalRecord && !hasExactLocalRecord && webResults.isEmpty()) {
+        if (localMode && asksForFileExistence(normalizedQuestion, conversationContext) && webResults.isEmpty()) {
+            directAnswer = fileExistenceAnswer(contexts);
+        } else if (requiresExactLocalRecord && !hasExactLocalRecord && webResults.isEmpty()) {
             directAnswer = exactRecordNotFoundAnswer(businessTokens);
         } else if (canAnswerFromExactLocalContext(normalizedQuestion, normalizedMode, contexts, webResults, businessTokens)) {
             directAnswer = exactLocalContextAnswer(contexts, businessTokens);
@@ -467,12 +469,13 @@ public class AiAssistantService {
                 %s
 
                 请基于上述上下文回答。要求：
-                1. 回答尽量简洁，先给结论，再列 2-5 条关键依据；
+                1. 回答尽量简洁，只展示“结论”和“关键依据”，关键依据控制在 2-5 条；
                 2. 会话上下文只用于理解追问指代，不用于替代实时系统上下文或本地知识上下文；
                 3. 涉及系统内统计数量时优先使用“实时系统上下文”的汇总数据；
                 4. 涉及具体单据、附件或明细时结合“本地知识上下文”；
                 5. 涉及外部政策、行业资料、公开网页或最新公共信息时结合“互联网检索上下文”的标题、链接和摘要，并列出关键来源；
-                6. 不要使用常识或猜测补齐系统内缺失字段，也不要把未在上下文中出现的网页内容当作依据。
+                6. 不要粘贴本地知识、附件、技术文档、代码块、Markdown 表格或长段原文；
+                7. 不要使用常识或猜测补齐系统内缺失字段，也不要把未在上下文中出现的网页内容当作依据。
                 """.formatted(question, modeLabel(mode), conversationContext.isBlank() ? "无" : conversationContext,
                 systemContext.isBlank() ? "无" : systemContext,
                 contextText.isBlank() ? "无" : contextText, webContextText.isBlank() ? "无" : webContextText);
@@ -509,35 +512,30 @@ public class AiAssistantService {
      *
      * <p>实现步骤：
      * 1. 筛选与用户输入编号完全匹配的知识结果；
-     * 2. 最多展示前三条，避免回答过长；
-     * 3. 使用标题、摘要和关键内容组成可追溯结论；
+     * 2. 最多展示前三条关键依据，避免回答过长；
+     * 3. 使用标题和摘要组成可追溯结论，不直接粘贴知识库长原文；
      * 4. 明确提示该回答未额外调用大模型，便于用户理解结果来源。</p>
      */
     private String exactLocalContextAnswer(List<KnowledgeSearchResult> contexts, Set<String> businessTokens) {
-        String details = contexts.stream()
+        String evidence = contexts.stream()
                 .filter(item -> exactSourceNo(businessTokens, item))
                 .limit(3)
-                .map(item -> """
-                        - 来源：%s
-                          单号：%s
-                          标题：%s
-                          摘要：%s
-                          关键内容：%s
-                        """.formatted(
+                .map(item -> "- %s%s：%s。%s".formatted(
                         value(item.category()),
-                        value(item.sourceNo()),
+                        value(item.sourceNo()).isBlank() ? "" : " " + value(item.sourceNo()),
                         value(item.title()),
-                        truncate(value(item.summary()), 300),
-                        truncate(value(item.content()), 900)
+                        truncate(firstAvailable(item.summary(), item.content()), 180)
                 ))
                 .collect(Collectors.joining("\n"));
         return """
-                已在本地知识库中找到完全匹配的业务记录，以下为系统内记录内容：
+                结论：
+                已在本地知识库中找到完全匹配的系统记录。
 
+                关键依据：
                 %s
 
-                说明：该问题已由本地精确命中结果直接回答，未额外调用大模型。
-                """.formatted(details.isBlank() ? "无可展示明细" : details);
+                说明：该结果来自本地精确命中，未额外调用大模型。
+                """.formatted(evidence.isBlank() ? "- 暂无可展示依据。" : evidence);
     }
 
     /**
@@ -989,10 +987,20 @@ public class AiAssistantService {
      * 构造检索用问题。
      */
     private String retrievalQuestion(String question, ConversationContext conversationContext) {
-        if (conversationContext.summary().isBlank() || !looksLikeFollowUp(question)) {
+        if (!looksLikeFollowUp(question)) {
             return question;
         }
-        return truncate(question + "\n会话摘要用于补充追问指代: " + conversationContext.summary(), 1200);
+        String recentUserContext = conversationContext.recentMessages().stream()
+                .filter(item -> !isAssistantRole(item.role()))
+                .map(ConversationMessage::content)
+                .filter(item -> !item.isBlank())
+                .reduce((previous, current) -> previous + "\n" + current)
+                .orElse("");
+        return truncate(lines(
+                question,
+                conversationContext.summary().isBlank() ? "" : "会话摘要用于补充追问指代: " + conversationContext.summary(),
+                recentUserContext.isBlank() ? "" : "最近用户问题用于补充追问指代:\n" + recentUserContext
+        ), 1200);
     }
 
     /**
@@ -1000,7 +1008,7 @@ public class AiAssistantService {
      */
     private boolean looksLikeFollowUp(String question) {
         String text = value(question).trim();
-        return text.length() <= 80 && containsAny(text, "它", "这个", "那个", "上一个", "上一条", "刚才", "这些", "他们", "对应", "继续", "再查", "详情");
+        return text.length() <= 80 && containsAny(text, "它", "这个", "那个", "上一个", "上一条", "刚才", "这些", "他们", "对应", "继续", "再查", "详情", "我问的是", "有没有文件", "是否有文件", "有没有资料", "是否有资料");
     }
 
     /**
@@ -1082,6 +1090,55 @@ public class AiAssistantService {
             return "当前系统没有检索到可作为依据的业务数据或知识文档，无法给出可靠回答。请先重建知识索引，或换一个更具体的问题。";
         }
         return "当前系统和互联网检索都没有找到可作为依据的资料，无法给出可靠回答。请补充关键词、单号、日期或切换检索模式。";
+    }
+
+    /**
+     * 判断用户是否只是在确认系统中有没有相关文件或资料。
+     */
+    private boolean asksForFileExistence(String question, ConversationContext conversationContext) {
+        String text = value(question).trim();
+        String contextText = value(conversationContext.summary()) + "\n" + conversationContext.recentMessages().stream()
+                .filter(item -> !isAssistantRole(item.role()))
+                .map(ConversationMessage::content)
+                .collect(Collectors.joining("\n"));
+        boolean asksExistence = containsAny(text, "有没有", "是否有", "有没有文件", "有没有资料", "有关于", "有哪些文件", "哪些文件", "找文件", "查文件", "我问的是");
+        boolean fileScope = containsAny(text + "\n" + contextText, "文件", "资料", "文档", "附件", "知识库");
+        return asksExistence && fileScope;
+    }
+
+    /**
+     * 文件存在性问题只回答是否找到和关键依据，不展开文件正文。
+     */
+    private String fileExistenceAnswer(List<KnowledgeSearchResult> contexts) {
+        List<KnowledgeSearchResult> fileResults = contexts.stream()
+                .filter(item -> containsAny(value(item.type()) + value(item.category()) + value(item.title()) + value(item.summary()), "ATTACHMENT", "LOCAL_KNOWLEDGE", "文件", "资料", "文档", "附件", "知识库", ".pdf", ".doc", ".docx", ".txt", ".md"))
+                .limit(3)
+                .toList();
+        if (fileResults.isEmpty()) {
+            return """
+                    结论：
+                    当前本地知识库没有检索到明确匹配的文件。
+
+                    关键依据：
+                    - 本次检索没有返回可识别为文件、资料、文档或附件的结果。
+                    - 可以换用文件名、主题关键词或上传人继续检索。
+                    """;
+        }
+        String evidence = fileResults.stream()
+                .map(item -> "- %s：%s%s".formatted(
+                        value(item.category()).isBlank() ? "本地知识库" : value(item.category()),
+                        value(item.title()).isBlank() ? "未命名文件" : value(item.title()),
+                        value(item.sourceNo()).isBlank() ? "" : "（" + value(item.sourceNo()) + "）"
+                ))
+                .distinct()
+                .collect(Collectors.joining("\n"));
+        return """
+                结论：
+                有，当前本地知识库检索到相关文件。
+
+                关键依据：
+                %s
+                """.formatted(evidence);
     }
 
     /**
@@ -1198,6 +1255,20 @@ public class AiAssistantService {
      */
     private String value(String value) {
         return value == null ? "" : value;
+    }
+
+    /**
+     * 返回第一个非空文本。
+     *
+     * <p>实现步骤：按调用方给定顺序查找；遇到非空字符串立即返回；全部为空时返回空字符串。</p>
+     */
+    private String firstAvailable(String... values) {
+        for (String item : values) {
+            if (item != null && !item.isBlank()) {
+                return item;
+            }
+        }
+        return "";
     }
 
     /**
