@@ -50,7 +50,39 @@
             <outputDirectory>docs</outputDirectory>
         </file>
         <file>
-            <source>${project.basedir}/PA.md</source>
+            <source>${project.basedir}/README.zh.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/Product-Design.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/产品设计.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/Technical-Architecture.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/技术架构.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/LLM-Development-Guide.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/大模型开发知识点整理.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/Engineering-Log.md</source>
+            <outputDirectory>docs</outputDirectory>
+        </file>
+        <file>
+            <source>${project.basedir}/编码打包注释和变更记录.md</source>
             <outputDirectory>docs</outputDirectory>
         </file>
     </files>

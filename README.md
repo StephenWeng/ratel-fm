@@ -1,40 +1,42 @@
 # Ratel FM
 
-Ratel FM 是一个面向小团队和本地化部署场景的轻量财务管理 ERP。系统将会计核算、采购、物流、库存、应收应付、出纳、审批流、附件、审计日志、智能检索、本地知识库和业务 Agent 放在同一套应用中，适合单机或局域网部署。
+[中文文档](README.zh.md)
 
-> 默认交付形态：主应用便携包、Ollama 独立包、Qdrant 独立包。主应用不强依赖 Ollama/Qdrant 启动，AI 能力可按配置开关启用或关闭。
+Ratel FM is a lightweight financial management ERP for small teams and local deployments. It combines accounting, purchasing, logistics, inventory, AR/AP, cashier management, workflow approval, attachments, audit logs, intelligent search, local knowledge, and Business Agent analysis in one application.
 
-## 主要能力
+> Default delivery model: one main application package, one independent Ollama package, and one independent Qdrant package. The main application does not require Ollama or Qdrant to start; AI capabilities are controlled by configuration switches.
 
-- 会计核算：科目、凭证、过账、反过账、试算平衡、财务报表、会计期间。
-- 业务单据：采购单、物流单、库存台账、物料库存、应收应付、付款结算、出纳流水。
-- 会计平台：按来源单据生成凭证草稿，保留业务来源链路。
-- 审批流：流程定义、流程绑定、审批任务、审批历史。
-- 权限体系：公司、账套、用户、角色、菜单、页面按钮和后端权限校验。
-- 附件管理：上传、预览、下载、删除、文本抽取和知识入库。
-- 审计追踪：登录日志、操作日志、业务时间线、文件日志。
-- AI 能力：ratel 助手、本地知识问答、智能检索、OCR、业务 Agent、Ollama、Qdrant。
-- 便携部署：Windows/Linux 启停脚本，主应用、Ollama、Qdrant 分包交付。
+## Highlights
 
-## 快速访问
+- Accounting: chart of accounts, vouchers, posting, unposting, trial balance, statements, and accounting periods.
+- Business documents: purchase orders, logistics orders, inventory ledger, material stock, AR/AP bills, settlement, and cashier transactions.
+- Accounting platform: creates voucher drafts from source documents while preserving source links.
+- Workflow: workflow definitions, bindings, tasks, approval history, approval and rejection.
+- Authorization: company, account set, user, role, menu, page button, and backend permission checks.
+- Attachments: upload, preview, download, delete, text extraction, and knowledge indexing.
+- Auditability: login records, operation logs, business timelines, and file logs.
+- AI: ratel assistant, local knowledge QA, intelligent search, OCR, Business Agent, Ollama, and Qdrant.
+- Portable deployment: Windows/Linux scripts with separate application, Ollama, and Qdrant packages.
 
-启动后访问：
+## Quick Access
 
-| 入口 | 地址 |
+After startup:
+
+| Entry | URL |
 | --- | --- |
-| 系统首页 | `http://localhost:38000/ratel/fm` |
+| Application | `http://localhost:38000/ratel/fm` |
 | Knife4j | `http://localhost:38000/ratel/fm/doc.html` |
 | OpenAPI | `http://localhost:38000/ratel/fm/v3/api-docs` |
 
-默认账号：
+Default account:
 
-| 字段 | 默认值 |
+| Field | Default |
 | --- | --- |
-| 公司 | `Ratel默认公司` |
-| 用户名 | `admin` |
-| 密码 | `admin123` |
+| Company | `Ratel默认公司` |
+| Username | `admin` |
+| Password | `admin123` |
 
-首次部署后应立即修改默认密码，也可以在首次启动前通过环境变量覆盖：
+Change the default password after first deployment, or override it before first startup:
 
 ```powershell
 $env:FM_ADMIN_USERNAME='admin'
@@ -42,63 +44,68 @@ $env:FM_ADMIN_IDENTITY_NO='ADMIN_IDENTITY_0001'
 $env:FM_ADMIN_PASSWORD='your-strong-password'
 ```
 
-## 技术栈
+## Tech Stack
 
-| 层级 | 技术 |
+| Layer | Stack |
 | --- | --- |
-| 后端 | Java 24、Spring Boot 4、Spring Security、Spring Data JPA |
-| 数据库 | H2 文件库，兼容 PostgreSQL 配置 |
-| 前端 | Vue 3、TypeScript、Vite |
-| AI | Ollama、Qdrant、H2 知识索引、SSE |
-| 打包 | Maven、frontend-maven-plugin、maven-assembly-plugin |
+| Backend | Java 24, Spring Boot 4, Spring Security, Spring Data JPA |
+| Database | H2 file database, PostgreSQL-compatible configuration |
+| Frontend | Vue 3, TypeScript, Vite |
+| AI | Ollama, Qdrant, H2 knowledge index, SSE |
+| Packaging | Maven, frontend-maven-plugin, maven-assembly-plugin |
 
-## 仓库结构
+## Repository Layout
 
 ```text
 ratel-fm
-├── frontend                         前端工程
-├── src/main/java/com/ratel/fm        后端源码
-├── src/main/resources                配置、初始化 SQL、构建脚本
-├── src/main/package                  主应用便携包模板
-├── src/main/ollama-package           Ollama 独立包模板
-├── src/main/qdrant-package           Qdrant 独立包模板
-├── src/main/assembly                 Maven 装配描述
-├── ollama-models                     本地 Ollama 模型仓库，不提交 Git
-├── README.md                         GitHub 项目说明
-├── PA.md                             产品设计
-├── TECH_ARCHITECTURE.md              技术架构
-├── AI_LLM_DEVELOPMENT_GUIDE.md       大模型开发知识点
-└── AI_PROGRAMMING_LOG.md             编码、打包、注释和变更记录
+├── frontend                         frontend project
+├── src/main/java/com/ratel/fm        backend source code
+├── src/main/resources                configuration, SQL, build scripts
+├── src/main/package                  main portable package template
+├── src/main/ollama-package           Ollama package template
+├── src/main/qdrant-package           Qdrant package template
+├── src/main/assembly                 Maven assembly descriptors
+├── ollama-models                     local Ollama model repository, not committed
+├── README.md                         English GitHub overview
+├── README.zh.md                      Chinese GitHub overview
+├── Product-Design.md                 English product design
+├── 产品设计.md                       Chinese product design
+├── Technical-Architecture.md         English technical architecture
+├── 技术架构.md                       Chinese technical architecture
+├── LLM-Development-Guide.md          English AI/LLM guide
+├── 大模型开发知识点整理.md           Chinese AI/LLM guide
+├── Engineering-Log.md                English engineering rules and log
+└── 编码打包注释和变更记录.md         Chinese engineering rules and log
 ```
 
-## 业务 Agent
+## Business Agent
 
-业务 Agent 统一从 `AI 助手 / 业务 Agent` Tab 进入。采购、库存、应收应付、会计平台等业务页面不再单独展示 `Agent 分析` 按钮，避免入口分散和执行链路不一致。
+Business Agent is exposed only through the unified `AI Assistant / Business Agent` tab. Purchase, inventory, AR/AP, and accounting platform pages do not show separate `Agent Analysis` buttons, so the analysis entry and execution path remain consistent.
 
-当前规划和实现的 Agent 类型：
+Current Agent types:
 
-| Agent | 说明 |
+| Agent | Purpose |
 | --- | --- |
-| 查询型 Agent | 自然语言查询采购单、物流单、库存、应收应付、凭证 |
-| 对账检查 Agent | 检查采购、收货、库存、应付、付款、凭证链路一致性 |
-| 凭证建议 Agent | 根据业务来源生成凭证草稿建议 |
-| 到期提醒 Agent | 识别应收应付到期、逾期、未核销风险 |
-| 流程助手 Agent | 解释审批节点、下一处理人、审批意见草稿 |
-| 库存风险 Agent | 检查负库存、低库存、调拨异常、收货未入库 |
-| 经营分析 Agent | 按项目、供应商、客户、物料汇总风险和建议 |
-| 附件/知识问答 Agent | 结合制度、合同、附件文本和系统数据回答问题 |
+| Query Agent | Natural language lookup for purchase, logistics, inventory, AR/AP, and vouchers |
+| Reconciliation Agent | Checks consistency across purchase, receipt, inventory, payable, payment, and voucher chains |
+| Voucher Suggestion Agent | Creates voucher draft suggestions from business sources |
+| Due Reminder Agent | Detects due, overdue, and unreconciled AR/AP risks |
+| Workflow Assistant Agent | Explains current approval node, next handler, and draft opinions |
+| Inventory Risk Agent | Checks negative stock, low stock, transfer anomalies, and receipt-not-in-stock |
+| Business Analysis Agent | Summarizes risks and suggestions by project, supplier, customer, and material |
+| Attachment/Knowledge QA Agent | Answers from policies, contracts, attachments, and system data |
 
-配置开关：
+Configuration:
 
-| 环境变量 | 默认值 | 说明 |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `FM_AI_AGENT_ENABLED` | `true` | 是否启用业务 Agent |
+| `FM_AI_AGENT_ENABLED` | `true` | Enables Business Agent |
 
-关闭业务 Agent 时，前端不展示业务 Agent 入口，ratel 助手也不会把相关意图交给业务 Agent，后端接口同时做兜底校验。
+When Business Agent is disabled, the frontend hides its entry, ratel assistant does not route related intents to the Agent, and backend APIs still enforce the switch as a safety boundary.
 
-## 本地开发
+## Local Development
 
-后端需要 JDK 24：
+Backend requires JDK 24:
 
 ```powershell
 $env:JAVA_HOME='D:\jdk\jdk-24.0.1'
@@ -106,7 +113,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 mvn -DskipTests compile
 ```
 
-前端开发：
+Frontend:
 
 ```powershell
 cd frontend
@@ -114,60 +121,56 @@ npm install
 npm run dev
 ```
 
-## 全量打包
+## Full Packaging
 
-主应用包：
+PowerShell users should quote Maven `-D` arguments:
 
 ```powershell
 $env:JAVA_HOME='D:\jdk\jdk-24.0.1'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
-mvn "-Dmaven.compiler.useIncrementalCompilation=false" "-Dmaven.test.skip=true" "-Dspring-boot.aot.skip=true" clean package
+mvn "-Dmaven.compiler.useIncrementalCompilation=false" "-Dmaven.test.skip=true" "-Dspring-boot.aot.skip=true" clean package "-Pwith-ollama,with-qdrant"
 ```
 
-Ollama 独立包：
+Expected artifacts:
 
-```powershell
-mvn "-Dmaven.compiler.useIncrementalCompilation=false" "-Dmaven.test.skip=true" "-Dspring-boot.aot.skip=true" clean package -Pwith-ollama
-```
-
-Qdrant 独立包：
-
-```powershell
-mvn "-Dmaven.compiler.useIncrementalCompilation=false" "-Dmaven.test.skip=true" "-Dspring-boot.aot.skip=true" clean package -Pwith-qdrant
-```
-
-全量交付包应包含：
-
-| 产物 | 说明 |
+| Artifact | Description |
 | --- | --- |
-| `target/ratel-fm.jar` | 后端可执行 Jar |
-| `target/ratel-fm-0.0.1-SNAPSHOT-portable.zip` | 主应用便携包 |
-| `target/ratel-fm-ollama.zip` | Ollama Windows/Linux 独立包 |
-| `target/ratel-fm-qdrant.zip` | Qdrant Windows/Linux 独立包 |
+| `target/ratel-fm.jar` | executable backend Jar |
+| `target/ratel-fm-portable.zip` | main application portable package |
+| `target/ratel-fm-ollama.zip` | independent Ollama Windows/Linux package |
+| `target/ratel-fm-qdrant.zip` | independent Qdrant Windows/Linux package |
 
-## Git 提交原则
+## Git Rules
 
-不提交以下内容：
+Do not commit generated or local runtime content:
 
 - `target/`
 - `frontend/node_modules/`
 - `frontend/dist/`
 - `logs/`
 - `ollama-models/`
-- Ollama/Qdrant 运行时、模型、向量库和运行数据
-- 本地配置、证书、PID 文件、临时下载目录
+- Ollama/Qdrant runtime, models, vector data, and runtime data
+- local configuration, certificates, PID files, temporary downloads
 
-## 相关文档
+## Documentation
 
-- [产品设计](PA.md)
-- [技术架构](TECH_ARCHITECTURE.md)
-- [大模型开发知识点](AI_LLM_DEVELOPMENT_GUIDE.md)
-- [编码、打包、注释和变更记录](AI_PROGRAMMING_LOG.md)
+Documentation maintenance rule:
 
-## 维护信息
+- Every product, architecture, AI, packaging, coding, or interaction change must update all affected root Markdown documents.
+- Chinese and English versions must be updated in the same change.
+- Before finishing a change, scan all root Markdown documents and keep cross-links, package documentation lists, and implementation notes consistent.
 
-| 项目 | 内容 |
+| English | Chinese |
 | --- | --- |
-| 组织 | `ratel` |
-| 开发人员 | `WenZhang` |
-| 联系方式 | `18782945613` |
+| [Product Design](Product-Design.md) | [产品设计](产品设计.md) |
+| [Technical Architecture](Technical-Architecture.md) | [技术架构](技术架构.md) |
+| [LLM Development Guide](LLM-Development-Guide.md) | [大模型开发知识点整理](大模型开发知识点整理.md) |
+| [Engineering Log](Engineering-Log.md) | [编码、打包、注释和变更记录](编码打包注释和变更记录.md) |
+
+## Maintainers
+
+| Item | Value |
+| --- | --- |
+| Organization | `ratel` |
+| Developer | `WenZhang` |
+| Contact | `18782945613` |
