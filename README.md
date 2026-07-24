@@ -16,6 +16,13 @@ Ratel FM is a lightweight financial management ERP for small teams and local dep
 - Attachments: upload, preview, download, delete, text extraction, and knowledge indexing.
 - Auditability: login records, operation logs, business timelines, and file logs.
 - AI: ratel assistant, local knowledge QA, intelligent search, OCR, Business Agent, Ollama, and Qdrant.
+- AI component status: shows configured Ollama models and locally installed Ollama model list for deployment diagnosis.
+- ratel assistant loading state: hides the question input and send button while thinking, shows only `思考中` with a thinking animation, and opens with a taller stable panel.
+- ratel assistant retrieval: file-existence answers list matched files in the conclusion, follow-up summarization keeps the previous file topic, and resume-related queries expand to candidate/profile terms.
+- ratel assistant answer format: multi-item conclusions and key evidence use numbered lines instead of hyphen bullets.
+- ratel assistant reasoning safety: internal reasoning drafts and think tags are stripped from both streaming and final answers.
+- financial intent routing: accounting, AR/AP, cash flow, reporting, reconciliation, voucher, inventory, purchasing, logistics, workflow, and business-analysis terms are managed in one vocabulary; professional finance questions prioritize live system context over knowledge-file retrieval.
+- AI architecture split: assistant model routing, prompt building, answer sanitizing, Agent selection, and business metrics snapshots are separated into dedicated components.
 - Portable deployment: Windows/Linux scripts with separate application, Ollama, and Qdrant packages.
 
 ## Quick Access

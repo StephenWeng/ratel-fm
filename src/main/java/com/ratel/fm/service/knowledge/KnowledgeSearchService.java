@@ -590,6 +590,12 @@ public class KnowledgeSearchService {
         if (containsAny(keyword, "凭证", "分录", "借方", "贷方")) {
             queries.add(keyword + " 财务凭证 凭证号 摘要 借方 贷方 过账");
         }
+        if (containsAny(keyword, "附件", "文件", "资料", "文档", "知识库")) {
+            queries.add(keyword + " 业务附件 文件 原文件名 上传资料 本地知识库 文档资料");
+        }
+        if (containsAny(keyword, "简历", "候选人", "求职", "工作经历", "项目经历", "学历", "Java开发", "java开发", "高级java", "工程师", "年经验", "年以上", "哈尔滨")) {
+            queries.add(keyword + " 简历 候选人 求职者 Java开发 高级Java开发 工程师 工作经历 项目经历 技术栈 年限 城市 哈尔滨 本地知识库 文件");
+        }
         if (containsAny(keyword, "基础", "字典", "项目", "部门", "岗位", "所属公司", "公司", "账套", "物料", "供应商", "客户", "仓库", "币种", "汇率", "结算", "付款条件", "交货条件", "运输方式", "承运商", "区划", "单据类型", "业务类型", "取消类型")) {
             queries.add(keyword + " 基础字典 基础资料 层级路径 启用状态 字典名称 字典编码");
         }
@@ -737,6 +743,16 @@ public class KnowledgeSearchService {
         addTermIfContains(normalized, terms, "账户流水", "出纳流水", "银行账户", "收款", "付款");
         addTermIfContains(normalized, terms, "凭证", "财务凭证", "过账", "借方", "贷方");
         addTermIfContains(normalized, terms, "附件", "业务附件", "文件", "上传");
+        addTermIfContains(normalized, terms, "文件", "附件", "资料", "文档", "本地知识库", "原文件名");
+        addTermIfContains(normalized, terms, "资料", "文件", "文档", "本地知识库", "原文件名");
+        addTermIfContains(normalized, terms, "文档", "文件", "资料", "本地知识库", "原文件名");
+        addTermIfContains(normalized, terms, "简历", "候选人", "求职者", "工作经历", "项目经历", "技术栈", "学历", "工程师", "Java开发", "高级Java开发");
+        addTermIfContains(normalized, terms, "候选人", "简历", "求职者", "工作经历", "项目经历", "技术栈", "学历");
+        addTermIfContains(normalized, terms, "高级java", "高级Java开发", "Java开发", "工程师", "技术栈", "项目经历");
+        addTermIfContains(normalized, terms, "Java开发", "高级Java开发", "工程师", "技术栈", "项目经历");
+        addTermIfContains(normalized, terms, "工程师", "简历", "候选人", "Java开发", "高级Java开发", "工作经历");
+        addTermIfContains(normalized, terms, "年以上", "工作年限", "工作经历", "经验", "简历");
+        addTermIfContains(normalized, terms, "哈尔滨", "城市", "所在地", "简历", "候选人");
         addTermIfContains(normalized, terms, "基础", "基础资料", "基础字典", "字典", "层级路径");
         addTermIfContains(normalized, terms, "字典", "基础字典", "基础资料", "字典名称", "字典编码");
         addTermIfContains(normalized, terms, "项目", "基础字典", "项目字典", "项目编码", "项目名称");
@@ -798,7 +814,8 @@ public class KnowledgeSearchService {
                 "物流", "运输", "发货地", "目的地", "发货", "送达", "承运商",
                 "采购", "采购单", "采购订单", "供应商", "库存", "库存流水", "物料", "仓库", "入库", "出库", "调拨",
                 "应收", "应付", "应收应付", "往来单位", "付款", "收款", "核销", "凭证", "财务凭证", "分录", "科目",
-                "附件", "文件", "基础", "字典", "基础资料", "业务", "订单", "流水", "单据", "编号", "单号", "单",
+                "附件", "文件", "文档", "资料", "本地知识库", "总结", "归纳", "概括", "清单",
+                "基础", "字典", "基础资料", "业务", "订单", "流水", "单据", "编号", "单号", "单",
                 "有", "没", "的", "了", "吗", "呢", "那", "啊"
         )) {
             cleaned = cleaned.replace(stopWord, " ");
@@ -1012,7 +1029,8 @@ public class KnowledgeSearchService {
         if (sourceType == KnowledgeSourceType.VOUCHER && containsAny(normalized, "凭证", "分录", "过账", "借方", "贷方", "报表")) {
             return 0.25;
         }
-        if (sourceType == KnowledgeSourceType.ATTACHMENT && containsAny(normalized, "附件", "文件", "合同", "发票", "单据")) {
+        if ((sourceType == KnowledgeSourceType.ATTACHMENT || sourceType == KnowledgeSourceType.USER_DOCUMENT)
+                && containsAny(normalized, "附件", "文件", "文档", "资料", "知识库", "合同", "发票", "单据", "简历", "候选人", "求职", "工程师", "工作经历")) {
             return 0.25;
         }
         if (sourceType == KnowledgeSourceType.SUBJECT && containsAny(normalized, "科目", "会计科目", "科目编码")) {

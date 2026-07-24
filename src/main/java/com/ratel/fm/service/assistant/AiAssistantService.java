@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * ratel助手服务，基于知识检索、本地 Ollama 和千问模型回答业务问题。
@@ -78,6 +79,9 @@ public class AiAssistantService {
      * 字段 aiProperties：保存 AI 助手会话上下文配置。
      */
     private final AiProperties aiProperties;
+    private final AssistantPromptBuilder promptBuilder;
+    private final AssistantAnswerSanitizer answerSanitizer;
+    private final AssistantModelRouter assistantModelRouter;
 
     /**
      * 构造 AiAssistantService 实例。
@@ -92,13 +96,19 @@ public class AiAssistantService {
             SystemContextService systemContextService,
             WebSearchService webSearchService,
             LargeModelRouter largeModelRouter,
-            AiProperties aiProperties
+            AiProperties aiProperties,
+            AssistantPromptBuilder promptBuilder,
+            AssistantAnswerSanitizer answerSanitizer,
+            AssistantModelRouter assistantModelRouter
     ) {
         this.knowledgeSearchService = knowledgeSearchService;
         this.systemContextService = systemContextService;
         this.webSearchService = webSearchService;
         this.largeModelRouter = largeModelRouter;
         this.aiProperties = aiProperties;
+        this.promptBuilder = promptBuilder;
+        this.answerSanitizer = answerSanitizer;
+        this.assistantModelRouter = assistantModelRouter;
     }
 
     /**
@@ -190,8 +200,11 @@ public class AiAssistantService {
         String retrievalQuestion = retrievalQuestion(normalizedQuestion, conversationContext);
         boolean localMode = !"web".equals(normalizedMode);
         boolean webMode = !"local".equals(normalizedMode) && !"command".equals(normalizedMode);
+        boolean professionalFinancialQuestion = FinancialIntentTerms.isFinancialProfessionalQuestion(retrievalQuestion)
+                && !FinancialIntentTerms.isKnowledgeQuestion(retrievalQuestion);
         String systemContext = localMode ? systemContextService.buildContext(retrievalQuestion) : "";
         List<KnowledgeSearchResult> contexts = localMode
+                && !professionalFinancialQuestion
                 ? knowledgeSearchService.searchForContext(retrievalQuestion)
                 : List.of();
         contexts = prioritizeExactMatches(normalizedQuestion, contexts);
@@ -270,7 +283,7 @@ public class AiAssistantService {
                         captureChars
                 );
                 if (answer != null && !answer.isBlank()) {
-                    return answer;
+                    return answerSanitizer.sanitizeAnswer(answer);
                 }
             } catch (AiStreamCancelledException ex) {
                 throw ex;
@@ -287,23 +300,25 @@ public class AiAssistantService {
         String answer = attemptedModel
                 ? modelFailureFallbackAnswer(plan.modelRoute(), plan.mode(), "模型没有返回内容")
                 : fallbackAnswer(plan.modelRoute(), plan.mode(), plan.systemContext(), plan.contexts(), plan.webResults());
-        contentConsumer.accept(answer);
-        return answer;
+        String cleanAnswer = answerSanitizer.sanitizeAnswer(answer);
+        contentConsumer.accept(cleanAnswer);
+        return cleanAnswer;
     }
 
     /**
      * 根据回答生成统一响应对象。
      */
     public AiAssistantResponse responseFromPlan(AssistantAnswerPlan plan, String answer) {
+        String cleanAnswer = answerSanitizer.sanitizeAnswer(answer);
         return new AiAssistantResponse(
                 plan.question(),
-                answer,
+                cleanAnswer,
                 modelAvailable(plan.modelRoute()),
                 activeModelName(plan.modelRoute()),
                 plan.mode(),
                 plan.citations(),
                 suggestions(plan.mode(), plan.contexts(), plan.webResults()),
-                updateConversationSummary(plan.conversationContext(), plan.question(), answer),
+                updateConversationSummary(plan.conversationContext(), plan.question(), cleanAnswer),
                 plan.conversationContext().recentRawRounds()
         );
     }
@@ -334,9 +349,9 @@ public class AiAssistantService {
                 question,
                 mode,
                 conversationContext,
-                compactSystemContext(systemContext),
-                compactLocalContexts(contexts),
-                compactWebResults(webResults)
+                systemContext,
+                contexts,
+                webResults
         );
         boolean attemptedModel = false;
         if (largeModelRouter.available(modelRoute.useCase())) {
@@ -347,7 +362,7 @@ public class AiAssistantService {
                  */
                 String answer = largeModelRouter.chat(modelRoute.useCase(), systemPrompt(), prompt, webMode);
                 if (answer != null && !answer.isBlank()) {
-                    return answer;
+                    return answerSanitizer.sanitizeAnswer(answer);
                 }
             } catch (RuntimeException ex) {
                 log.warn("Assistant model call failed: provider={}, model={}, reason={}",
@@ -370,9 +385,9 @@ public class AiAssistantService {
                 plan.question(),
                 plan.mode(),
                 plan.conversationContext().promptText(),
-                compactSystemContext(plan.systemContext()),
-                compactLocalContexts(plan.contexts()),
-                compactWebResults(plan.webResults())
+                plan.systemContext(),
+                plan.contexts(),
+                plan.webResults()
         );
     }
 
@@ -403,20 +418,7 @@ public class AiAssistantService {
      * 3. 返回处理结果或更新对象状态。</p>
      */
     private String systemPrompt() {
-        return """
-                你是 Ratel FM 财务 ERP 的企业知识问答助手。
-                只能根据用户当前权限下的实时系统上下文、知识上下文和互联网检索上下文回答，不要编造不存在的单据、金额、日期、链接或结论。
-                如果上下文不足，明确说明缺少依据，并给出下一步查询建议。
-                如果用户询问具体单号、编码、运单号或流水号，必须优先使用完全匹配该编号的上下文；没有完全匹配时，不得把相似编号当成同一条数据。
-                回答具体日期、金额、数量和状态时，必须能在上下文中找到原文依据；找不到时回答“当前上下文未提供该字段”。
-                会话上下文只用于理解追问里的“它、上一个、刚才”等指代，不得把会话摘要当作实时业务事实依据。
-                对新增、修改、删除、审批、确认、取消等动作，不得从会话上下文继承确认意图；必须以用户当前这一次问题中的明确表达为准。
-                对“本月、这个月、当月”按实时系统上下文中的本月范围理解。
-                对互联网资料必须结合来源标题、链接和网页正文片段说明依据；搜索来源不足时明确说明“互联网检索未提供足够依据”，不要把模型常识当作检索结论。
-                内部系统数据和互联网资料冲突时，要区分“系统内数据”和“互联网资料”。
-                对金额、日期、单号、状态要保持原文准确。
-                回答使用中文，结构清晰，先给结论，再列依据。
-                """;
+        return promptBuilder.systemPrompt();
     }
 
     /**
@@ -435,50 +437,7 @@ public class AiAssistantService {
             List<KnowledgeSearchResult> contexts,
             List<WebSearchResult> webResults
     ) {
-        String contextText = contexts.stream()
-                .map(item -> """
-                        [来源ID:%s][类型:%s][单号:%s][标题:%s][相关度:%.4f]
-                        摘要: %s
-                        关键内容: %s
-                        """.formatted(item.id(), item.category(), item.sourceNo(), item.title(), item.score(), item.summary(), item.content()))
-                .collect(Collectors.joining("\n---\n"));
-        String webContextText = webResults.stream()
-                .map(item -> """
-                        [互联网来源:%s][标题:%s][相关度:%.4f]
-                        链接: %s
-                        摘要: %s
-                        """.formatted(item.source(), item.title(), item.score(), item.url(), item.summary()))
-                .collect(Collectors.joining("\n---\n"));
-        return """
-                用户问题：
-                %s
-
-                检索模式：
-                %s
-
-                会话上下文：
-                %s
-
-                实时系统上下文：
-                %s
-
-                本地知识上下文：
-                %s
-
-                互联网检索上下文：
-                %s
-
-                请基于上述上下文回答。要求：
-                1. 回答尽量简洁，只展示“结论”和“关键依据”，关键依据控制在 2-5 条；
-                2. 会话上下文只用于理解追问指代，不用于替代实时系统上下文或本地知识上下文；
-                3. 涉及系统内统计数量时优先使用“实时系统上下文”的汇总数据；
-                4. 涉及具体单据、附件或明细时结合“本地知识上下文”；
-                5. 涉及外部政策、行业资料、公开网页或最新公共信息时结合“互联网检索上下文”的标题、链接和摘要，并列出关键来源；
-                6. 不要粘贴本地知识、附件、技术文档、代码块、Markdown 表格或长段原文；
-                7. 不要使用常识或猜测补齐系统内缺失字段，也不要把未在上下文中出现的网页内容当作依据。
-                """.formatted(question, modeLabel(mode), conversationContext.isBlank() ? "无" : conversationContext,
-                systemContext.isBlank() ? "无" : systemContext,
-                contextText.isBlank() ? "无" : contextText, webContextText.isBlank() ? "无" : webContextText);
+        return promptBuilder.userPrompt(question, modeLabel(mode), conversationContext, systemContext, contexts, webResults);
     }
 
     /**
@@ -517,16 +476,16 @@ public class AiAssistantService {
      * 4. 明确提示该回答未额外调用大模型，便于用户理解结果来源。</p>
      */
     private String exactLocalContextAnswer(List<KnowledgeSearchResult> contexts, Set<String> businessTokens) {
-        String evidence = contexts.stream()
+        List<String> evidenceItems = contexts.stream()
                 .filter(item -> exactSourceNo(businessTokens, item))
                 .limit(3)
-                .map(item -> "- %s%s：%s。%s".formatted(
+                .map(item -> "%s%s：%s。%s".formatted(
                         value(item.category()),
                         value(item.sourceNo()).isBlank() ? "" : " " + value(item.sourceNo()),
                         value(item.title()),
                         truncate(firstAvailable(item.summary(), item.content()), 180)
                 ))
-                .collect(Collectors.joining("\n"));
+                .toList();
         return """
                 结论：
                 已在本地知识库中找到完全匹配的系统记录。
@@ -535,7 +494,7 @@ public class AiAssistantService {
                 %s
 
                 说明：该结果来自本地精确命中，未额外调用大模型。
-                """.formatted(evidence.isBlank() ? "- 暂无可展示依据。" : evidence);
+                """.formatted(numberedList(evidenceItems, "暂无可展示依据。"));
     }
 
     /**
@@ -690,13 +649,8 @@ public class AiAssistantService {
      * 4. 路由只描述场景和候选模型，具体 provider 由 LargeModelRouter 按配置选择。</p>
      */
     private ModelRoute selectModelRoute(String question, String mode) {
-        if (isCommandQuestion(question, mode)) {
-            return modelRoute("语音/操作指令", AiModelUseCase.COMMAND);
-        }
-        if (isReasoningQuestion(question)) {
-            return modelRoute("复杂分析", AiModelUseCase.REASONING);
-        }
-        return modelRoute("业务问答", AiModelUseCase.CHAT);
+        AssistantModelRouter.ModelRoute route = assistantModelRouter.route(question, mode);
+        return new ModelRoute(route.label(), route.useCase(), route.provider(), route.primaryModel(), route.models());
     }
 
     /**
@@ -736,7 +690,7 @@ public class AiAssistantService {
      */
     private boolean isReasoningQuestion(String question) {
         String text = value(question);
-        return containsAny(text,
+        return FinancialIntentTerms.isReasoningQuestion(text) || containsAny(text,
                 "分析", "原因", "为什么", "趋势", "预测", "风险", "异常", "对比",
                 "同比", "环比", "占比", "报表", "利润", "现金流", "资产负债",
                 "试算平衡", "逾期", "到期", "汇总", "统计", "建议", "优化");
@@ -869,7 +823,7 @@ public class AiAssistantService {
         int rounds = Math.max(0, config.getRecentRawRounds());
         int messageLimit = rounds * 2;
         List<ConversationMessage> recentMessages = sanitizeMessages(conversationMessages, messageLimit, config.getMaxMessageChars());
-        String summary = truncate(value(conversationSummary), Math.max(0, config.getMaxSummaryChars()));
+        String summary = truncate(answerSanitizer.sanitizeAnswer(value(conversationSummary)), Math.max(0, config.getMaxSummaryChars()));
         String recentText = recentMessages.stream()
                 .map(item -> (isAssistantRole(item.role()) ? "助手" : "用户") + ": " + item.content())
                 .collect(Collectors.joining("\n"));
@@ -912,7 +866,8 @@ public class AiAssistantService {
             lines.add("已提到的业务编号: " + String.join("、", businessTokens));
         }
         String summary = lines.stream()
-                .map(this::stripDangerousConfirmation)
+                .map(answerSanitizer::sanitizeAnswer)
+                .map(answerSanitizer::stripDangerousConfirmation)
                 .filter(item -> !item.isBlank())
                 .distinct()
                 .collect(Collectors.joining("\n"));
@@ -923,8 +878,8 @@ public class AiAssistantService {
      * 构造单轮摘要行。
      */
     private String conciseConversationLine(String question, String answer) {
-        String safeQuestion = stripDangerousConfirmation(truncate(value(question), 260));
-        String safeAnswer = stripDangerousConfirmation(truncate(value(answer), 420));
+        String safeQuestion = answerSanitizer.stripDangerousConfirmation(truncate(value(question), 260));
+        String safeAnswer = answerSanitizer.stripDangerousConfirmation(truncate(answerSanitizer.sanitizeAnswer(value(answer)), 420));
         if (safeQuestion.isBlank() && safeAnswer.isBlank()) {
             return "";
         }
@@ -942,7 +897,7 @@ public class AiAssistantService {
                 .filter(item -> item != null && value(item.content()).trim().length() > 0)
                 .map(item -> new ConversationMessage(
                         isAssistantRole(item.role()) ? "assistant" : "user",
-                        truncate(stripDangerousConfirmation(item.content()), Math.max(0, maxMessageChars))
+                        truncate(answerSanitizer.stripDangerousConfirmation(answerSanitizer.sanitizeAnswer(item.content())), Math.max(0, maxMessageChars))
                 ))
                 .filter(item -> !item.content().isBlank())
                 .toList();
@@ -967,6 +922,40 @@ public class AiAssistantService {
                 .replace("确认审批", "要求审批")
                 .replace("确认取消", "要求取消")
                 .replace("确认执行", "要求执行");
+    }
+
+    /**
+     * 清理模型可能泄露的内部思考、复盘草稿和 think 标签。
+     */
+    private String sanitizeAssistantAnswer(String value) {
+        String text = value(value).replace("\r\n", "\n").trim();
+        if (text.isBlank()) {
+            return "";
+        }
+        text = text
+                .replaceAll("(?is)<think>.*?</think>", "")
+                .replaceAll("(?is)<think>.*$", "")
+                .replaceAll("(?is)```\\s*think\\s*.*?```", "")
+                .replace("</think>", "")
+                .trim();
+        boolean hasInternalMarker = containsAny(text,
+                "重新读一下用户的问题",
+                "我需要",
+                "用户问的是",
+                "这可能是一个",
+                "不能简单",
+                "先看",
+                "让我");
+        int lastConclusion = text.lastIndexOf("结论：");
+        if (hasInternalMarker && lastConclusion > 0) {
+            text = text.substring(lastConclusion).trim();
+        }
+        text = text
+                .replaceAll("(?m)^\\s*---\\s*$", "")
+                .replaceAll("(?m)^\\s*(现在重新读一下用户的问题|用户问的是|我需要|让我|先看).*$", "")
+                .replaceAll("\\n{3,}", "\n\n")
+                .trim();
+        return text;
     }
 
     /**
@@ -1008,7 +997,10 @@ public class AiAssistantService {
      */
     private boolean looksLikeFollowUp(String question) {
         String text = value(question).trim();
-        return text.length() <= 80 && containsAny(text, "它", "这个", "那个", "上一个", "上一条", "刚才", "这些", "他们", "对应", "继续", "再查", "详情", "我问的是", "有没有文件", "是否有文件", "有没有资料", "是否有资料");
+        return text.length() <= 100 && containsAny(text,
+                "它", "这个", "那个", "上一个", "上一条", "刚才", "这些", "他们", "对应", "继续", "再查", "详情",
+                "总结", "归纳", "概括", "清单", "文档内容", "文件内容", "上面", "上述", "前面",
+                "我问的是", "有没有文件", "是否有文件", "有没有资料", "是否有资料");
     }
 
     /**
@@ -1111,7 +1103,8 @@ public class AiAssistantService {
      */
     private String fileExistenceAnswer(List<KnowledgeSearchResult> contexts) {
         List<KnowledgeSearchResult> fileResults = contexts.stream()
-                .filter(item -> containsAny(value(item.type()) + value(item.category()) + value(item.title()) + value(item.summary()), "ATTACHMENT", "LOCAL_KNOWLEDGE", "文件", "资料", "文档", "附件", "知识库", ".pdf", ".doc", ".docx", ".txt", ".md"))
+                .filter(item -> containsAny(value(item.type()) + value(item.category()) + value(item.title()) + value(item.summary()),
+                        "ATTACHMENT", "USER_DOCUMENT", "LOCAL_KNOWLEDGE", "文件", "资料", "文档", "附件", "知识库", ".pdf", ".doc", ".docx", ".txt", ".md"))
                 .limit(3)
                 .toList();
         if (fileResults.isEmpty()) {
@@ -1120,25 +1113,46 @@ public class AiAssistantService {
                     当前本地知识库没有检索到明确匹配的文件。
 
                     关键依据：
-                    - 本次检索没有返回可识别为文件、资料、文档或附件的结果。
-                    - 可以换用文件名、主题关键词或上传人继续检索。
+                    1、本次检索没有返回可识别为文件、资料、文档或附件的结果。
+                    2、可以换用文件名、主题关键词或上传人继续检索。
                     """;
         }
-        String evidence = fileResults.stream()
-                .map(item -> "- %s：%s%s".formatted(
+        List<String> evidenceItems = fileResults.stream()
+                .map(item -> "%s：%s%s".formatted(
                         value(item.category()).isBlank() ? "本地知识库" : value(item.category()),
                         value(item.title()).isBlank() ? "未命名文件" : value(item.title()),
                         value(item.sourceNo()).isBlank() ? "" : "（" + value(item.sourceNo()) + "）"
                 ))
                 .distinct()
-                .collect(Collectors.joining("\n"));
+                .toList();
+        String fileNames = fileResults.stream()
+                .map(item -> value(item.title()).isBlank() ? "未命名文件" : value(item.title()))
+                .distinct()
+                .collect(Collectors.joining("、"));
         return """
                 结论：
-                有，当前本地知识库检索到相关文件。
+                有，当前本地知识库检索到相关文件：%s。
 
                 关键依据：
                 %s
-                """.formatted(evidence);
+                """.formatted(fileNames, numberedList(evidenceItems, "暂无可展示依据。"));
+    }
+
+    /**
+     * 使用中文数字序号生成面向用户的依据列表，避免 Markdown 短横线列表影响阅读。
+     */
+    private String numberedList(List<String> items, String emptyText) {
+        List<String> validItems = items.stream()
+                .map(this::value)
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
+        if (validItems.isEmpty()) {
+            return "1、" + emptyText;
+        }
+        return IntStream.range(0, validItems.size())
+                .mapToObj(index -> (index + 1) + "、" + validItems.get(index))
+                .collect(Collectors.joining("\n"));
     }
 
     /**

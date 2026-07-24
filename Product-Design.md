@@ -56,6 +56,8 @@ Navigation is organized by business domain:
 
 Business Agent is exposed only in the AI Assistant page. Purchase, inventory, AR/AP, and accounting platform pages do not show separate `Agent Analysis` buttons.
 
+The floating ratel assistant opens with a taller stable panel. While thinking, it hides both the question input and send button, shows only `思考中` with a thinking animation, and restores the input and send button after the answer is complete.
+
 ## 5. Core Business Loops
 
 Purchase chain:
@@ -87,6 +89,10 @@ submit document -> match workflow -> approve node -> approve/reject -> update bu
 ratel assistant supports natural language QA, knowledge retrieval, business explanation, and entry guidance. Answers should contain conclusions and key evidence only. Long raw knowledge chunks, retrieval cards, and internal context are not shown.
 
 File-existence questions must answer whether a file exists first, then list matching file names and key evidence. Follow-up questions must use recent conversation context.
+When conclusions or key evidence contain multiple items, the assistant must use numbered lines instead of hyphen bullets.
+Reasoning is allowed only as an internal process. The user-facing answer must not expose chain-of-thought drafts, review notes, or think tags.
+Professional finance questions such as business statistics, reporting, reconciliation, aging, cash flow, voucher suggestions, purchasing, inventory, AR/AP, and workflow should be routed through live system data and Business Agent capabilities before knowledge-file QA.
+Business-analysis answers should rely on structured operating metrics before model summarization, so conclusions are based on consistent purchase, AR/AP, and inventory snapshots.
 
 Business Agent supports structured business analysis:
 
@@ -125,6 +131,9 @@ When Business Agent is disabled:
 - Button labels should describe user actions, not technical implementation.
 - AI output must not expose prompt, retrieval chunks, raw JSON, or debug fields.
 - Loading states should use necessary text and button spinners only.
+- AI component status should show deployment-facing model information clearly, including configured and installed Ollama models.
+- ratel assistant hides the question input while thinking; it returns to the `输入问题` state after the answer finishes.
+- File-existence answers must name matched files in the conclusion, and follow-up summary requests must keep the previous document topic.
 
 ## 9. Non-Goals
 

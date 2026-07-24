@@ -59,20 +59,27 @@
         @click="scrollToBottom"
       />
 
-      <footer class="ai-panel-footer">
-        <div v-if="loading" class="ai-retrieving">正在检索</div>
+      <footer class="ai-panel-footer" :class="{ loading }">
+        <div v-if="loading" class="ai-retrieving">
+          <span>思考中</span>
+          <span class="thinking-indicator" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </div>
         <el-input
+          v-if="!loading"
           v-model="question"
           type="textarea"
           :rows="3"
           resize="none"
           maxlength="500"
           show-word-limit
-          :disabled="loading"
           placeholder="输入问题"
           @keyup.enter.exact="ask"
         />
-        <el-button type="primary" :icon="Promotion" :loading="loading" @click="ask">发送</el-button>
+        <el-button v-if="!loading" type="primary" :icon="Promotion" @click="ask">发送</el-button>
       </footer>
     </section>
   </transition>
@@ -461,12 +468,13 @@ async function ask() {
         },
         onDelta: (content) => {
           streamedText += content
-          if (!streamedText.trim() && !assistantMessage) {
+          const displayText = sanitizeAssistantAnswer(streamedText)
+          if (!displayText.trim() && !assistantMessage) {
             return
           }
           assistantMessage = ensureAssistantMessage(assistantMessage, pendingResponse)
-          assistantMessage.content = streamedText
-          assistantMessage.response = normalizeResponse(assistantMessage.response || pendingResponse || emptyAssistantResponse(text, 'local'), streamedText)
+          assistantMessage.content = displayText
+          assistantMessage.response = normalizeResponse(assistantMessage.response || pendingResponse || emptyAssistantResponse(text, 'local'), displayText)
           if (conversationPinnedToBottom.value) {
             void scrollToBottom()
           } else {
@@ -568,12 +576,39 @@ function ensureAssistantMessage(current?: AssistantMessage, response?: AiAssista
  * 规整助手响应，防止异常流式返回缺少数组字段时导致页面渲染中断。
  */
 function normalizeResponse(response: AiAssistantResponse, answer = response.answer || ''): AiAssistantResponse {
+  const cleanAnswer = sanitizeAssistantAnswer(answer)
   return {
     ...response,
-    answer,
+    answer: cleanAnswer,
     citations: Array.isArray(response.citations) ? response.citations : [],
     suggestions: Array.isArray(response.suggestions) ? response.suggestions : []
   }
+}
+
+/**
+ * 清理模型流式输出中可能泄露的内部思考过程。
+ */
+function sanitizeAssistantAnswer(value: string): string {
+  let text = (value || '').replace(/\r\n/g, '\n').trim()
+  if (!text) {
+    return ''
+  }
+  text = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/gi, '')
+    .replace(/```\s*think\s*[\s\S]*?```/gi, '')
+    .replace(/<\/think>/gi, '')
+    .trim()
+  const hasInternalMarker = /重新读一下用户的问题|用户问的是|这可能是一个|不能简单|我需要|让我|先看/.test(text)
+  const lastConclusion = text.lastIndexOf('结论：')
+  if (hasInternalMarker && lastConclusion > 0) {
+    text = text.slice(lastConclusion).trim()
+  }
+  return text
+    .replace(/^\s*---\s*$/gm, '')
+    .replace(/^\s*(现在重新读一下用户的问题|用户问的是|我需要|让我|先看).*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 /**
@@ -747,6 +782,7 @@ async function enterResponse(response: AiAssistantResponse) {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(420px, calc(100vw - 32px));
+  height: min(620px, calc(100vh - 112px));
   max-height: min(680px, calc(100vh - 112px));
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -766,9 +802,50 @@ async function enterResponse(response: AiAssistantResponse) {
 }
 
 .ai-retrieving {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--primary-color);
   font-size: 12px;
   font-weight: 700;
+}
+
+.thinking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+}
+
+.thinking-indicator span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: thinking-bounce 0.9s infinite ease-in-out;
+}
+
+.thinking-indicator span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-indicator span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 .ai-panel-header {
@@ -935,6 +1012,12 @@ async function enterResponse(response: AiAssistantResponse) {
   background: var(--surface-color);
 }
 
+.ai-panel-footer.loading {
+  align-items: center;
+  grid-template-columns: 1fr;
+  min-height: 58px;
+}
+
 .ai-panel-enter-active,
 .ai-panel-leave-active {
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -956,6 +1039,7 @@ async function enterResponse(response: AiAssistantResponse) {
     right: 14px;
     bottom: 76px;
     width: calc(100vw - 28px);
+    height: min(620px, calc(100vh - 96px));
     max-height: calc(100vh - 96px);
   }
 

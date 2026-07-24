@@ -106,11 +106,28 @@ public class AiComponentHealthService {
             return item("ollama", "Ollama 模型服务", "DISABLED", "配置已关闭 Ollama。");
         }
         if (ollamaClient.available()) {
-            return item("ollama", "Ollama 模型服务", "UP", "服务可用：" + ollamaClient.baseUrlForDisplay() + "，聊天模型：" + ollamaClient.chatModel());
+            return item("ollama", "Ollama 模型服务", "UP", ollamaDetail("服务可用"));
         }
         return item("ollama", "Ollama 模型服务", "WARN",
                 "未检测到可用模型服务：" + ollamaClient.baseUrlForDisplay()
-                        + "。请确认 Ollama 已启动、监听内网地址、模型已下载，并放行 TCP 11434。");
+                        + "。请确认 Ollama 已启动、监听内网地址、模型已下载，并放行 TCP 11434。"
+                        + " 当前配置：" + configuredOllamaModelsText());
+    }
+
+    private String ollamaDetail(String prefix) {
+        List<String> installedModels = ollamaClient.installedModels();
+        String installedText = installedModels.isEmpty() ? "未探测到已下载模型" : String.join("、", installedModels);
+        return prefix + "：" + ollamaClient.baseUrlForDisplay()
+                + "。当前配置：" + configuredOllamaModelsText()
+                + "。已下载模型：" + installedText;
+    }
+
+    private String configuredOllamaModelsText() {
+        return "聊天=" + ollamaClient.chatModel()
+                + "，指令=" + ollamaClient.commandModel()
+                + "，推理=" + ollamaClient.reasoningModel()
+                + "，视觉/OCR=" + ollamaClient.visionModel()
+                + "，Embedding=" + ollamaClient.embeddingModel();
     }
 
     private AiComponentStatusItem qwenStatus() {

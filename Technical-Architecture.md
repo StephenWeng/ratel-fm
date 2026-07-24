@@ -60,6 +60,14 @@ AI entries are unified in the AI Assistant page:
 - Business Agent for structured business analysis.
 - Local knowledge for upload, indexing, and retrieval.
 
+The floating ratel assistant uses a stable taller panel on first open. During retrieval and reasoning it hides the question input and send button, and shows only `思考中` with a thinking animation.
+
+Follow-up retrieval augments short requests such as summary or recap with recent user questions and conversation summary. Knowledge retrieval also expands document and resume terms so user documents are not displaced by generic system-module results.
+
+Both direct-answer paths and model prompts constrain answer formatting: multi-item conclusions and evidence use numbered lines instead of hyphen bullets.
+Assistant streaming and final response assembly both sanitize model output to remove internal reasoning drafts, review phrases, and think tags before content is shown or saved into conversation summary.
+`FinancialIntentTerms` centralizes finance vocabulary for assistant routing and Business Agent selection. When a question matches professional finance terms and is not a document/attachment question, the assistant skips local knowledge retrieval and builds the answer from live system context plus the reasoning model.
+
 Purchase, inventory, AR/AP, and accounting platform pages do not keep independent `Agent Analysis` buttons.
 
 ## 4. Data Architecture
@@ -89,6 +97,10 @@ AI consists of:
 
 - Model provider: Ollama, with room for other providers.
 - Model router: selects models by QA, command, reasoning, or embedding scenario.
+- Assistant model router: `AssistantModelRouter` maps command, normal QA, and complex finance reasoning to model use cases.
+- Prompt builder: `AssistantPromptBuilder` owns system prompts, user prompts, and context compaction rules.
+- Answer sanitizer: `AssistantAnswerSanitizer` removes think tags, reasoning drafts, and dangerous inherited confirmation wording.
+- Component health: exposes configured Ollama models and installed `/api/tags` model list for diagnosis.
 - Knowledge index: attachments, policies, contracts, and business summaries.
 - Intelligent search: keyword, semantic, and hybrid search.
 - SSE output: streaming assistant responses.
@@ -103,9 +115,9 @@ The backend receives Business Agent requests and dispatches analyzers according 
 Execution steps:
 
 1. Read current user, company, account set, and permissions.
-2. Identify Agent type and query scope.
+2. Use `BusinessAgentSelector` to identify Agent type, module scope, stage, and query scope.
 3. Query controlled business data.
-4. Generate structured analysis results.
+4. For business-analysis questions, use `BusinessMetricsService` to create a structured metrics snapshot before generating findings.
 5. Run self-checks for critical Agents.
 6. Return conclusions, risks, evidence, and suggestions.
 

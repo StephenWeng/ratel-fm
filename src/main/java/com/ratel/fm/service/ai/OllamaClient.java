@@ -198,6 +198,18 @@ public class OllamaClient {
     }
 
     /**
+     * 返回当前 Ollama 服务已下载模型名称列表。
+     *
+     * <p>实现步骤：复用内部 `/api/tags` 探测缓存，只暴露不可变副本，供状态页完整展示本地模型清单。</p>
+     */
+    public List<String> installedModels() {
+        if (!properties.getOllama().isEnabled() || baseUrl().isBlank() || circuitOpen()) {
+            return List.of();
+        }
+        return List.copyOf(availableModels());
+    }
+
+    /**
      * 判断本地 embedding 模型是否可用。
      *
      * <p>实现步骤：检查 Ollama 开关、服务地址、熔断状态和模型列表，避免索引阶段误调用未下载模型。</p>

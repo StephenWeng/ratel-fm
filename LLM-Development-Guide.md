@@ -46,6 +46,8 @@ Default model scenarios:
 
 Chat models may degrade to another available local model. Embedding models must not be changed casually because vector dimensions and semantic space must remain stable.
 
+The AI component status page shows both configured Ollama models and the installed model list returned by Ollama `/api/tags`, so deployment issues can distinguish "configured but not downloaded" from "downloaded but not selected".
+
 ## 4. ratel Assistant
 
 ratel assistant is responsible for:
@@ -55,6 +57,13 @@ ratel assistant is responsible for:
 - querying readable business information;
 - identifying whether Business Agent should be used;
 - answering file-existence questions at file level.
+- opening the floating panel at a stable taller height; hiding the input and send button during retrieval and reasoning while showing only `思考中` with a thinking animation.
+
+Internal assistant components:
+
+- `AssistantModelRouter`: selects chat, command, or reasoning model use cases.
+- `AssistantPromptBuilder`: owns prompts and context compaction.
+- `AssistantAnswerSanitizer`: removes internal reasoning, think tags, and dangerous inherited confirmation wording.
 
 Output requirements:
 
@@ -62,6 +71,11 @@ Output requirements:
 - Do not show retrieval cards, long raw chunks, internal JSON, prompts, or debug fields.
 - State limitations when evidence is insufficient.
 - Use recent context for follow-up questions.
+- Hide the question input and send button during retrieval and reasoning; show only the `思考中` indicator with a thinking animation until the answer is complete.
+- For file-existence questions, list matched file names in the conclusion. For follow-up summarization, preserve the previous document topic. Resume queries should expand to candidate, engineer, work experience, project experience, and location terms.
+- For multi-item conclusions or key evidence, use numbered lines instead of hyphen bullets.
+- Do not expose chain-of-thought drafts, review notes, or think tags. Streaming and final answers must both be sanitized.
+- Use the unified finance vocabulary for intent routing. Professional finance/statistics questions must prioritize live system context and reasoning; document retrieval is only primary for attachment, file, contract, policy, resume, and knowledge-base questions.
 
 ## 5. File-Existence QA
 
@@ -110,6 +124,8 @@ OCR extracts text and creates structured suggestions only. It does not create bu
 ## 9. Business Agent
 
 Business Agent is a controlled business analyzer, not free-form chat.
+
+`BusinessAgentService` orchestrates execution. `BusinessAgentSelector` owns stage, module, and Agent-type selection. `BusinessMetricsService` builds structured operating metrics before business-analysis findings are generated.
 
 Current Agent types:
 

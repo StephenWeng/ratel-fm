@@ -119,6 +119,7 @@ import { api } from '@/api/fm'
 import { useAuthStore } from '@/stores/auth'
 import type { AiAssistantResponse, AiConversationMessage, LocalKnowledgeDocumentView } from '@/types/api'
 import { canEnterAnswer, canEnterCitation, enterAnswer, enterCitation } from '@/utils/aiNavigation'
+import { agentTypesByFinancialQuestion } from '@/utils/financialIntentTerms'
 import BusinessAgentPanel from '@/components/agent/BusinessAgentPanel.vue'
 
 /**
@@ -218,10 +219,11 @@ async function ask() {
         },
         onDelta: (content) => {
           streamedText += content
-          if (!streamedText.trim() && !answer.value) {
+          const displayText = sanitizeAssistantAnswer(streamedText)
+          if (!displayText.trim() && !answer.value) {
             return
           }
-          answer.value = normalizeResponse(answer.value || pendingResponse || emptyAssistantResponse(text, 'local'), streamedText)
+          answer.value = normalizeResponse(answer.value || pendingResponse || emptyAssistantResponse(text, 'local'), displayText)
         },
         onDone: (response) => {
           finalResponse = normalizeResponse(response, streamedText || response.answer || '')
@@ -288,24 +290,46 @@ async function triggerBusinessAgentByIntent(text: string) {
 }
 
 function agentTypesByQuestion(text: string) {
-  const result = new Set<string>()
-  if (/对账|核对|链路|一致|匹配/.test(text)) result.add('reconciliation')
-  if (/到期|逾期|未核销|待收|待付/.test(text)) result.add('dueReminder')
-  if (/制证|凭证建议|生成凭证|会计平台/.test(text)) result.add('voucherSuggestion')
-  if (/负库存|低库存|库存风险|调拨/.test(text)) result.add('inventoryRisk')
-  return Array.from(result)
+  return agentTypesByFinancialQuestion(text)
 }
 
 /**
  * 规整助手响应，防止异常流式返回缺少数组字段时导致页面渲染中断。
  */
 function normalizeResponse(response: AiAssistantResponse, answer = response.answer || ''): AiAssistantResponse {
+  const cleanAnswer = sanitizeAssistantAnswer(answer)
   return {
     ...response,
-    answer,
+    answer: cleanAnswer,
     citations: Array.isArray(response.citations) ? response.citations : [],
     suggestions: Array.isArray(response.suggestions) ? response.suggestions : []
   }
+}
+
+/**
+ * 清理模型流式输出中可能泄露的内部思考过程。
+ */
+function sanitizeAssistantAnswer(value: string): string {
+  let text = (value || '').replace(/\r\n/g, '\n').trim()
+  if (!text) {
+    return ''
+  }
+  text = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/gi, '')
+    .replace(/```\s*think\s*[\s\S]*?```/gi, '')
+    .replace(/<\/think>/gi, '')
+    .trim()
+  const hasInternalMarker = /重新读一下用户的问题|用户问的是|这可能是一个|不能简单|我需要|让我|先看/.test(text)
+  const lastConclusion = text.lastIndexOf('结论：')
+  if (hasInternalMarker && lastConclusion > 0) {
+    text = text.slice(lastConclusion).trim()
+  }
+  return text
+    .replace(/^\s*---\s*$/gm, '')
+    .replace(/^\s*(现在重新读一下用户的问题|用户问的是|我需要|让我|先看).*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 /**

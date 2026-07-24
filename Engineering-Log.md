@@ -100,6 +100,30 @@ Use Git LFS or an external artifact repository before uploading large files.
 - Added the rule that each change must review and update all root Markdown documents affected by the change.
 - Synchronized the rule across README, product design, technical architecture, AI guide, and engineering log.
 
+### 2026-07-24: Ollama Model Status Display
+
+- AI component status now shows configured Ollama chat, command, reasoning, vision/OCR, and embedding models.
+- The Ollama component also shows the installed model list returned by Ollama `/api/tags`.
+- This avoids showing only `qwen2.5:7b` when more local models are installed or configured for other scenarios.
+
+### 2026-07-24: ratel Assistant Searching State
+
+- The floating assistant now opens with a taller stable panel.
+- The assistant hides the question input and send button while thinking.
+- During retrieval and reasoning it shows only `思考中` with a thinking animation.
+- After retrieval finishes, the footer returns to the `输入问题` input state and send button.
+
+### 2026-07-24: ratel Assistant Retrieval Reasoning Review
+
+- File-existence direct answers now list matched files in the conclusion.
+- Follow-up detection now treats summary, recap, document-content, and previous-topic phrases as context-dependent requests.
+- Knowledge retrieval expands document and resume terms such as candidate, engineer, work experience, project experience, years, and Harbin.
+- User-uploaded documents receive file-intent boosting for document, resume, and candidate queries.
+- Multi-item conclusions and key evidence now use numbered lines instead of hyphen bullets.
+- Assistant output now strips internal reasoning drafts, review phrases, and think tags from both streaming display and final responses.
+- Added a unified finance vocabulary for assistant routing and Business Agent selection. Professional finance questions now prioritize live system context instead of local knowledge-file retrieval.
+- Architecture split: added `AssistantModelRouter`, `AssistantPromptBuilder`, `AssistantAnswerSanitizer`, `BusinessAgentSelector`, and `BusinessMetricsService` to reduce assistant and Agent orchestration responsibilities.
+
 ### 2026-07-23: Unified Business Agent Entry
 
 - The AI Assistant page keeps the `Business Agent` tab.

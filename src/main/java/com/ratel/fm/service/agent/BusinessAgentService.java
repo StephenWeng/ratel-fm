@@ -11,6 +11,7 @@ import com.ratel.fm.security.CompanyScope;
 import com.ratel.fm.security.CurrentUser;
 import com.ratel.fm.security.SecurityUtils;
 import com.ratel.fm.service.cashier.CashierService;
+import com.ratel.fm.service.assistant.FinancialIntentTerms;
 import com.ratel.fm.service.finance.FinanceService;
 import com.ratel.fm.service.inventory.InventoryService;
 import com.ratel.fm.service.knowledge.KnowledgeSearchService;
@@ -61,6 +62,8 @@ public class BusinessAgentService {
     private final CashierService cashierService;
     private final KnowledgeSearchService knowledgeSearchService;
     private final AiProperties aiProperties;
+    private final BusinessMetricsService businessMetricsService;
+    private final BusinessAgentSelector businessAgentSelector;
 
     public BusinessAgentService(
             OperationService operationService,
@@ -70,7 +73,9 @@ public class BusinessAgentService {
             WorkflowService workflowService,
             CashierService cashierService,
             KnowledgeSearchService knowledgeSearchService,
-            AiProperties aiProperties
+            AiProperties aiProperties,
+            BusinessMetricsService businessMetricsService,
+            BusinessAgentSelector businessAgentSelector
     ) {
         this.operationService = operationService;
         this.inventoryService = inventoryService;
@@ -80,6 +85,8 @@ public class BusinessAgentService {
         this.cashierService = cashierService;
         this.knowledgeSearchService = knowledgeSearchService;
         this.aiProperties = aiProperties;
+        this.businessMetricsService = businessMetricsService;
+        this.businessAgentSelector = businessAgentSelector;
     }
 
     /**
@@ -504,22 +511,24 @@ public class BusinessAgentService {
         if (!permissions.contains(PermissionCode.REPORT_VIEW)) {
             return unavailable("businessAnalysis", "经营分析 Agent", "当前用户无统计报表查看权限。");
         }
-        List<PurchaseOrderView> purchases = operationService.listPurchaseOrders(null, null, businessNo(question), keyword(question), null, null, null, null);
-        List<ArApView> arAps = arApService.list(null, null, businessNo(question), null, keyword(question), null, null, null);
-        List<InventoryMaterialStockView> stocks = flattenStocks(inventoryService.materialStock());
-        BigDecimal purchaseTotal = purchases.stream().map(PurchaseOrderView::totalAmountCny).map(this::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal remainingTotal = arAps.stream().map(ArApView::remainingAmountCny).map(this::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        long materialKinds = stocks.stream().filter(item -> amount(item.stockQuantity()).compareTo(BigDecimal.ZERO) != 0).count();
+        BusinessMetricsService.BusinessMetricsSnapshot metrics = businessMetricsService.snapshot(businessNo(question), keyword(question), permissions);
+        List<String> risks = new ArrayList<>();
+        if (metrics.remainingTotal().compareTo(BigDecimal.ZERO) > 0) {
+            risks.add("存在未结往来余额，影响现金流判断。");
+        }
+        if (metrics.negativeStockKinds() > 0) {
+            risks.add("存在 " + metrics.negativeStockKinds() + " 个负库存物料，经营结论需要结合库存准确性复核。");
+        }
         return new BusinessAgentCapabilityResult(
                 "businessAnalysis",
                 "经营分析 Agent",
                 true,
-                "采购金额 " + purchaseTotal.toPlainString() + "，往来未结 " + remainingTotal.toPlainString() + "，有库存物料 " + materialKinds + " 项。",
-                List.of("采购人民币金额：" + purchaseTotal.toPlainString(), "往来未结金额：" + remainingTotal.toPlainString(), "有库存物料数：" + materialKinds),
-                remainingTotal.compareTo(BigDecimal.ZERO) > 0 ? List.of("存在未结往来余额，影响现金流判断。") : List.of(),
+                "采购金额 " + metrics.purchaseTotal().toPlainString() + "，往来未结 " + metrics.remainingTotal().toPlainString() + "，有库存物料 " + metrics.materialKinds() + " 项。",
+                List.of("采购人民币金额：" + metrics.purchaseTotal().toPlainString(), "往来未结金额：" + metrics.remainingTotal().toPlainString(), "有库存物料数：" + metrics.materialKinds(), "负库存物料数：" + metrics.negativeStockKinds()),
+                risks,
                 List.of("可按项目、供应商、客户和物料继续拆分分析。", "经营结论必须结合当前筛选条件和证据，不应外推到全公司。"),
                 List.of("经营分析草稿：说明采购规模、未结往来、库存结构和待跟进风险。"),
-                purchases.stream().limit(limit).map(item -> evidence("PURCHASE_ORDER", item.id(), item.orderNo(), item.supplierName(), item.status(), item.totalAmountCny(), item.orderDate(), "/purchase-orders")).toList()
+                metrics.purchases().stream().limit(limit).map(item -> evidence("PURCHASE_ORDER", item.id(), item.orderNo(), item.supplierName(), item.status(), item.totalAmountCny(), item.orderDate(), "/purchase-orders")).toList()
         );
     }
 
@@ -678,76 +687,19 @@ public class BusinessAgentService {
     }
 
     private String normalizeStage(String stage) {
-        String value = value(stage).toLowerCase(Locale.ROOT);
-        return switch (value) {
-            case "", "readonly", "read_only", "read-only", "只读" -> "readOnly";
-            case "draft", "草稿" -> "draft";
-            case "controlled", "controlled_execution", "受控执行" -> "controlled";
-            case "multistep", "multi_step", "multi-step", "多步骤" -> "multiStep";
-            default -> "readOnly";
-        };
+        return businessAgentSelector.normalizeStage(stage);
     }
 
     private int stageOrder(String stage) {
-        return switch (stage) {
-            case "readOnly" -> 1;
-            case "draft" -> 2;
-            case "controlled" -> 3;
-            case "multiStep" -> 4;
-            default -> 0;
-        };
+        return businessAgentSelector.stageOrder(stage);
     }
 
     private List<String> selectedModules(String question, List<String> requested, Set<PermissionCode> permissions) {
-        LinkedHashSet<String> modules = new LinkedHashSet<>();
-        if (requested != null) {
-            requested.stream().map(this::normalizeModule).filter(item -> !item.isBlank()).forEach(modules::add);
-        }
-        String text = question.toLowerCase(Locale.ROOT);
-        if (modules.isEmpty()) {
-            if (containsAny(text, "采购", "供应商", "采购单")) modules.add("purchase");
-            if (containsAny(text, "物流", "运输", "运单", "承运", "发货", "送达")) modules.add("shipment");
-            if (containsAny(text, "库存", "物料", "入库", "出库", "调拨")) modules.add("inventory");
-            if (containsAny(text, "应收", "应付", "收款", "付款", "核销", "逾期", "到期")) modules.add("arAp");
-            if (containsAny(text, "财务", "凭证", "分录", "过账", "借方", "贷方")) modules.add("finance");
-            if (containsAny(text, "审批", "流程", "待办", "已办")) modules.add("workflow");
-        }
-        if (modules.isEmpty()) {
-            if (hasAny(permissions, PermissionCode.PURCHASE_MANAGE, PermissionCode.REPORT_VIEW)) modules.add("purchase");
-            if (hasAny(permissions, PermissionCode.LOGISTICS_MANAGE, PermissionCode.REPORT_VIEW)) modules.add("shipment");
-            if (hasAny(permissions, PermissionCode.INVENTORY_MANAGE, PermissionCode.REPORT_VIEW)) modules.add("inventory");
-            if (hasAny(permissions, PermissionCode.AR_AP_MANAGE, PermissionCode.REPORT_VIEW)) modules.add("arAp");
-            if (hasAny(permissions, PermissionCode.FINANCE_VOUCHER_MANAGE, PermissionCode.REPORT_VIEW)) modules.add("finance");
-            if (permissions.contains(PermissionCode.WORKFLOW_USE)) modules.add("workflow");
-        }
-        return modules.stream().toList();
+        return businessAgentSelector.selectedModules(question, requested, permissions);
     }
 
     private List<String> selectedAgentTypes(String question, List<String> requested) {
-        LinkedHashSet<String> agentTypes = new LinkedHashSet<>();
-        if (requested != null) {
-            requested.stream().map(this::normalizeAgentType).filter(item -> !item.isBlank()).forEach(agentTypes::add);
-        }
-        String text = question.toLowerCase(Locale.ROOT);
-        if (agentTypes.isEmpty()) {
-            if (containsAny(text, "查询", "查一下", "看看", "单号", "凭证", "采购单", "物流单")) agentTypes.add("query");
-            if (containsAny(text, "对账", "核对", "一致", "链路", "匹配")) agentTypes.add("reconciliation");
-            if (containsAny(text, "制证", "凭证建议", "生成凭证", "会计平台")) agentTypes.add("voucherSuggestion");
-            if (containsAny(text, "到期", "逾期", "未核销", "待收", "待付")) agentTypes.add("dueReminder");
-            if (containsAny(text, "审批", "流程", "待办", "意见")) agentTypes.add("workflowAssistant");
-            if (containsAny(text, "负库存", "低库存", "调拨", "入库", "库存风险")) agentTypes.add("inventoryRisk");
-            if (containsAny(text, "经营", "分析", "供应商", "客户", "项目", "物料")) agentTypes.add("businessAnalysis");
-            if (containsAny(text, "附件", "合同", "制度", "知识", "资料", "文档")) agentTypes.add("knowledgeQa");
-        }
-        if (agentTypes.isEmpty()) {
-            agentTypes.add("query");
-            agentTypes.add("reconciliation");
-            agentTypes.add("dueReminder");
-            agentTypes.add("inventoryRisk");
-            agentTypes.add("businessAnalysis");
-            agentTypes.add("knowledgeQa");
-        }
-        return agentTypes.stream().toList();
+        return businessAgentSelector.selectedAgentTypes(question, requested);
     }
 
     private BusinessAgentModuleResult unauthorized(String module, String moduleName, String reason) {
@@ -792,31 +744,11 @@ public class BusinessAgentService {
     }
 
     private String normalizeModule(String module) {
-        String value = value(module).toLowerCase(Locale.ROOT);
-        return switch (value) {
-            case "purchase", "采购" -> "purchase";
-            case "shipment", "logistics", "物流" -> "shipment";
-            case "inventory", "库存" -> "inventory";
-            case "arap", "ar_ap", "arAp", "应收应付" -> "arAp";
-            case "finance", "财务" -> "finance";
-            case "workflow", "审批" -> "workflow";
-            default -> value;
-        };
+        return businessAgentSelector.normalizeModule(module);
     }
 
     private String normalizeAgentType(String agentType) {
-        String value = value(agentType).toLowerCase(Locale.ROOT);
-        return switch (value) {
-            case "query", "查询", "查询型" -> "query";
-            case "reconciliation", "reconcile", "对账", "对账检查" -> "reconciliation";
-            case "vouchersuggestion", "voucher_suggestion", "voucher-suggestion", "凭证建议", "制证建议" -> "voucherSuggestion";
-            case "duereminder", "due_reminder", "due-reminder", "到期提醒", "逾期提醒" -> "dueReminder";
-            case "workflowassistant", "workflow_assistant", "workflow-assistant", "流程助手", "审批助手" -> "workflowAssistant";
-            case "inventoryrisk", "inventory_risk", "inventory-risk", "库存风险" -> "inventoryRisk";
-            case "businessanalysis", "business_analysis", "business-analysis", "经营分析" -> "businessAnalysis";
-            case "knowledgeqa", "knowledge_qa", "knowledge-qa", "知识问答", "附件问答" -> "knowledgeQa";
-            default -> value;
-        };
+        return businessAgentSelector.normalizeAgentType(agentType);
     }
 
     private String moduleName(String module) {
