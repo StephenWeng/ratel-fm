@@ -23,6 +23,7 @@ Ratel FM is a lightweight financial management ERP for small teams and local dep
 - ratel assistant reasoning safety: internal reasoning drafts and think tags are stripped from both streaming and final answers.
 - financial intent routing: accounting, AR/AP, cash flow, reporting, reconciliation, voucher, inventory, purchasing, logistics, workflow, and business-analysis terms are managed in one vocabulary; professional finance questions prioritize live system context over knowledge-file retrieval.
 - AI architecture split: assistant model routing, prompt building, answer sanitizing, Agent selection, and business metrics snapshots are separated into dedicated components.
+- UI theme adaptation: light, dark, emerald, finance-blue, and vue-gold themes share unified design tokens across shell layout, tables, dialogs, inputs, scrollbars, and focus states.
 - Portable deployment: Windows/Linux scripts with separate application, Ollama, and Qdrant packages.
 
 ## Quick Access

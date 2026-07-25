@@ -1173,18 +1173,20 @@ function queryNumber(value: unknown) {
 
 .filter-form {
   margin-bottom: 14px;
-  padding: 14px 14px 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  padding: 16px 16px 2px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, var(--surface-tint-color), transparent 150px),
+    var(--surface-color);
 }
 
 .business-form-section {
   margin-bottom: 14px;
   padding: 12px 14px 4px;
-  border: 1px solid #dbe3ef;
-  border-radius: 6px;
-  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--subtle-surface-color);
 }
 
 .section-heading {
@@ -1194,8 +1196,8 @@ function queryNumber(value: unknown) {
   gap: 12px;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
-  color: #111827;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--heading-color);
   font-size: 14px;
   font-weight: 700;
 }
@@ -1209,7 +1211,7 @@ function queryNumber(value: unknown) {
 }
 
 .stock-panel {
-  padding-top: 14px;
+  padding: 16px;
 }
 
 .panel-toolbar {
@@ -1224,17 +1226,17 @@ function queryNumber(value: unknown) {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--heading-color);
 }
 
 .section-subtitle {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted-text-color);
 }
 
 .negative-stock {
-  color: #dc2626;
+  color: var(--danger-color);
   font-weight: 600;
 }
 

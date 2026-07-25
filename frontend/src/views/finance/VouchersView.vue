@@ -121,7 +121,7 @@
       </el-table>
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="min(1560px, 96vw)" top="4vh">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="min(1560px, 96vw)" top="4vh" class="voucher-dialog">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="86px" :disabled="readonly">
         <el-row :gutter="12">
           <el-col :xs="24" :sm="8">
@@ -172,7 +172,7 @@
         </div>
         <div class="voucher-lines-table">
           <el-table :data="form.lines" border>
-            <el-table-column label="科目" min-width="260">
+            <el-table-column label="科目" min-width="230">
               <template #default="{ row }">
                 <el-cascader
                   v-model="row.subjectId"
@@ -187,7 +187,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="摘要" min-width="220">
+            <el-table-column label="摘要" min-width="190">
               <template #default="{ row, $index }">
                 <el-input
                   v-model="row.summary"
@@ -200,34 +200,34 @@
                 <div v-if="lineSummaryTouched[$index] && lineSummaryError(row)" class="line-field-error">{{ lineSummaryError(row) }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="借方金额" width="160">
+            <el-table-column label="借方金额" width="145">
               <template #default="{ row }">
                 <el-input-number v-model="row.debitAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" />
               </template>
             </el-table-column>
-            <el-table-column label="贷方金额" width="160">
+            <el-table-column label="贷方金额" width="145">
               <template #default="{ row }">
                 <el-input-number v-model="row.creditAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" />
               </template>
             </el-table-column>
-            <el-table-column label="币种" width="130">
+            <el-table-column label="币种" width="115">
               <template #default="{ row }">
                 <el-select v-model="row.currencyCode" filterable class="full" :disabled="readonly" @change="onLineCurrencyChange(row)">
                   <el-option v-for="item in currencyOptions" :key="item.code" :label="item.code" :value="item.code" />
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="汇率" width="160">
+            <el-table-column label="汇率" width="145">
               <template #default="{ row }">
                 <el-input-number v-model="row.exchangeRateToCny" :min="0.00000001" :precision="8" :controls="false" :disabled="readonly || row.currencyCode === 'CNY'" class="full" />
               </template>
             </el-table-column>
-            <el-table-column label="金额(人民币)" width="150" align="right">
+            <el-table-column label="金额(人民币)" width="140" align="right">
               <template #default="{ row }">
                 <AmountText :value="lineCnyAmount(row)" currency-code="CNY" currency-name="人民币" />
               </template>
             </el-table-column>
-            <el-table-column label="辅助核算" min-width="180">
+            <el-table-column label="辅助核算" min-width="160">
               <template #default="{ row }">
                 <el-input v-model="row.auxiliary" :disabled="readonly" />
               </template>
@@ -2236,11 +2236,22 @@ async function maybeOpenRouteVoucherImage() {
 
 .voucher-lines-table {
   width: 100%;
-  overflow-x: auto;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .voucher-lines-table :deep(.el-table) {
-  min-width: 1470px;
+  width: 100% !important;
+}
+
+:global(.voucher-dialog .el-dialog__body) {
+  overflow-x: hidden;
+}
+
+:global(.voucher-dialog .el-table__inner-wrapper),
+:global(.voucher-dialog .el-table__body-wrapper),
+:global(.voucher-dialog .el-table__header-wrapper) {
+  overflow-x: hidden !important;
 }
 
 .line-input-error :deep(.el-input__wrapper) {
@@ -2261,9 +2272,9 @@ async function maybeOpenRouteVoucherImage() {
 .filter-form {
   margin-bottom: 14px;
   padding: 14px 14px 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
 }
 
 .voucher-image-toolbar {

@@ -1633,15 +1633,17 @@ function applyRouteQuery() {
 }
 
 .ar-ap-tabs :deep(.el-tabs__header) {
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 .filter-form {
   margin-bottom: 14px;
-  padding: 14px 14px 0;
+  padding: 16px 16px 2px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--surface-color);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, var(--surface-tint-color), transparent 150px),
+    var(--surface-color);
 }
 
 .payment-stats-groups {
@@ -1674,8 +1676,11 @@ function applyRouteQuery() {
   min-height: 82px;
   padding: 14px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--surface-color);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, var(--surface-tint-color), transparent),
+    var(--surface-color);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
 }
 
 .payment-stat-card span {
@@ -1691,9 +1696,9 @@ function applyRouteQuery() {
 .business-form-section {
   margin-bottom: 14px;
   padding: 12px 14px 4px;
-  border: 1px solid #dbe3ef;
-  border-radius: 6px;
-  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--subtle-surface-color);
 }
 
 .section-heading {
@@ -1703,8 +1708,8 @@ function applyRouteQuery() {
   gap: 12px;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
-  color: #111827;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--heading-color);
   font-size: 14px;
   font-weight: 700;
 }
@@ -1729,9 +1734,9 @@ function applyRouteQuery() {
   gap: 10px;
   margin-bottom: 14px;
   padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--subtle-surface-color);
 }
 
 .settlement-summary div {
@@ -1740,7 +1745,7 @@ function applyRouteQuery() {
 }
 
 .settlement-summary span {
-  color: #6b7280;
+  color: var(--muted-text-color);
   font-size: 12px;
 }
 

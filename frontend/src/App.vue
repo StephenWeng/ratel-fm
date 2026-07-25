@@ -92,10 +92,10 @@ function goLogin() {
   height: 44px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  background: #ecfdf5;
-  color: #1f7a5a;
+  border: 1px solid var(--accent-border-color);
+  border-radius: var(--radius-md);
+  background: var(--primary-light-color);
+  color: var(--primary-color);
   font-size: 22px;
 }
 
@@ -106,13 +106,13 @@ function goLogin() {
 }
 
 .expired-title strong {
-  color: #111827;
+  color: var(--heading-color);
   font-size: 18px;
   line-height: 1.25;
 }
 
 .expired-title span {
-  color: #64748b;
+  color: var(--muted-text-color);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -125,10 +125,10 @@ function goLogin() {
 .expired-message {
   margin: 0;
   padding: 12px 14px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #374151;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--subtle-surface-color);
+  color: var(--text-color);
   line-height: 1.6;
 }
 
@@ -138,25 +138,25 @@ function goLogin() {
   justify-content: center;
   gap: 6px;
   padding: 12px;
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
-  background: #fff7ed;
-  color: #9a3412;
+  border: 1px solid var(--warning-border-color);
+  border-radius: var(--radius-md);
+  background: var(--warning-surface-color);
+  color: var(--warning-color);
 }
 
 .countdown-label {
-  color: #64748b;
+  color: var(--muted-text-color);
   font-size: 13px;
 }
 
 .countdown-box strong {
-  color: #c2410c;
+  color: var(--warning-color);
   font-size: 26px;
   line-height: 1;
 }
 
 .countdown-unit {
-  color: #c2410c;
+  color: var(--warning-color);
   font-size: 14px;
   font-weight: 700;
 }

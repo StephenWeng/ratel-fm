@@ -20,16 +20,16 @@
         <template v-for="item in visibleMenus" :key="'children' in item ? item.key : item.path">
           <el-sub-menu v-if="'children' in item" :index="item.key">
             <template #title>
-              <el-icon><component :is="item.icon" /></el-icon>
+              <span class="nav-icon-glass"><component :is="item.icon" /></span>
               <span>{{ item.label }}</span>
             </template>
             <el-menu-item v-for="child in item.children" :key="child.path" :index="child.path">
-              <el-icon><component :is="child.icon" /></el-icon>
+              <span class="nav-icon-glass"><component :is="child.icon" /></span>
               <span>{{ child.label }}</span>
             </el-menu-item>
           </el-sub-menu>
           <el-menu-item v-else :index="item.path">
-            <el-icon><component :is="item.icon" /></el-icon>
+            <span class="nav-icon-glass"><component :is="item.icon" /></span>
             <span>{{ item.label }}</span>
           </el-menu-item>
         </template>
@@ -1661,7 +1661,10 @@ async function logout() {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: var(--app-bg);
+  background:
+    radial-gradient(circle at 18% 10%, var(--app-bg-accent), transparent 30%),
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--primary-color) 13%, transparent), transparent 32%),
+    var(--app-bg);
 }
 
 .shell > :deep(.el-container) {
@@ -1674,8 +1677,14 @@ async function logout() {
   position: relative;
   z-index: 20;
   overflow-x: hidden;
-  border-right: 1px solid var(--border-color);
-  background: var(--surface-color);
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 76%, var(--glass-border-color));
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    linear-gradient(180deg, var(--surface-tint-color), transparent 260px),
+    var(--glass-surface-color);
+  box-shadow: 8px 0 30px var(--shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
   transition: width 0.18s ease;
   will-change: width;
   height: 100vh;
@@ -1687,7 +1696,7 @@ async function logout() {
   gap: 12px;
   height: 64px;
   padding: 0 13px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--soft-border-color);
   white-space: nowrap;
 }
 
@@ -1698,9 +1707,15 @@ async function logout() {
   height: 38px;
   place-items: center;
   padding: 6px;
-  border-radius: 6px;
-  background: var(--primary-color);
+  border: 1px solid color-mix(in srgb, var(--glass-border-color) 64%, var(--primary-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 72%, white), var(--primary-color));
   color: var(--primary-contrast);
+  box-shadow: 0 14px 30px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
 }
 
 .brand-text {
@@ -1729,7 +1744,7 @@ async function logout() {
 
 .nav-menu {
   border-right: 0;
-  padding: 8px;
+  padding: 10px 8px;
   height: calc(100vh - 64px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -1746,11 +1761,65 @@ async function logout() {
 .nav-menu.el-menu--collapse :deep(.el-sub-menu__title),
 .nav-menu.el-menu--collapse :deep(.el-menu-item) {
   justify-content: center;
-  padding: 0 18px !important;
+  padding: 0 13px !important;
 }
 
-.nav-menu.el-menu--collapse :deep(.el-icon) {
+.nav-menu.el-menu--collapse :deep(.nav-icon-glass) {
   margin-right: 0;
+}
+
+.nav-menu :deep(.el-menu-item),
+.nav-menu :deep(.el-sub-menu__title) {
+  height: 42px;
+  margin: 3px 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--secondary-text-color);
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.nav-menu :deep(.el-menu-item:hover),
+.nav-menu :deep(.el-sub-menu__title:hover) {
+  border-color: color-mix(in srgb, var(--border-color) 68%, var(--glass-border-color));
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    var(--glass-surface-color);
+  color: var(--primary-color);
+  box-shadow: 0 10px 24px var(--shadow-color);
+}
+
+.nav-menu :deep(.el-menu-item.is-active) {
+  border-color: color-mix(in srgb, var(--primary-color) 50%, var(--glass-border-color));
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 66%, var(--glass-surface-color));
+  color: var(--primary-color);
+  box-shadow: 0 12px 28px var(--shadow-color);
+}
+
+.nav-icon-glass {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin-right: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 62%, var(--glass-border-color));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 45%),
+    color-mix(in srgb, var(--glass-strong-surface-color) 68%, var(--primary-light-color));
+  color: var(--primary-color);
+  box-shadow: inset 0 1px 0 var(--glass-highlight-color), 0 8px 18px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.16);
+  -webkit-backdrop-filter: blur(12px) saturate(1.16);
+}
+
+.nav-icon-glass :deep(svg),
+.nav-icon-glass svg {
+  width: 16px;
+  height: 16px;
 }
 
 .topbar {
@@ -1758,21 +1827,35 @@ async function logout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   height: 64px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--surface-color);
+  padding: 0 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 76%, var(--glass-border-color));
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 38%),
+    linear-gradient(180deg, var(--surface-tint-color), transparent),
+    var(--glass-surface-color);
+  box-shadow: 0 10px 28px var(--shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
 }
 
 .topbar-title {
+  min-width: 0;
+  overflow: hidden;
   color: var(--heading-color);
   font-size: 18px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
 }
 
 .server-clock,
@@ -1788,9 +1871,12 @@ async function logout() {
 
 .server-clock {
   padding: 0 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--subtle-surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, var(--glass-border-color));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--glass-strong-surface-color) 76%, var(--subtle-surface-color));
+  box-shadow: 0 8px 20px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
 }
 
 .server-clock .el-icon {
@@ -1813,10 +1899,15 @@ async function logout() {
 .weather-trigger {
   padding: 0 10px;
   border: 1px solid var(--accent-border-color);
-  border-radius: 6px;
-  background: var(--accent-surface-color);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 40%),
+    color-mix(in srgb, var(--accent-surface-color) 72%, var(--glass-surface-color));
   color: var(--accent-text-color);
   cursor: pointer;
+  box-shadow: 0 8px 20px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
 }
 
 .weather-trigger.unavailable {
@@ -1943,11 +2034,17 @@ async function logout() {
   justify-content: center;
   gap: 6px;
   height: 32px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--subtle-surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 68%, var(--glass-border-color));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--glass-strong-surface-color) 76%, var(--subtle-surface-color));
   color: var(--text-color);
   cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 8px 20px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
 }
 
 .theme-trigger {
@@ -1961,8 +2058,13 @@ async function logout() {
 
 .theme-trigger:hover,
 .manual-trigger:hover {
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 74%, var(--glass-surface-color));
   border-color: var(--primary-color);
   color: var(--primary-color);
+  box-shadow: 0 12px 26px var(--shadow-color);
+  transform: translateY(-1px);
 }
 
 .theme-dot {
@@ -1993,11 +2095,27 @@ async function logout() {
   gap: 6px;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 68%, var(--glass-border-color));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--glass-strong-surface-color) 78%, var(--surface-color));
   color: var(--text-color);
   cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 8px 20px var(--shadow-color);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
+}
+
+.user-button:hover {
+  border-color: var(--primary-color);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 74%, var(--glass-surface-color));
+  color: var(--primary-color);
+  box-shadow: 0 12px 26px var(--shadow-color);
+  transform: translateY(-1px);
 }
 
 .content {
@@ -2006,8 +2124,11 @@ async function logout() {
   min-width: 0;
   min-height: 0;
   height: calc(100vh - 64px);
-  padding: 18px;
+  padding: 16px 18px 18px;
   overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--app-bg-accent), transparent 260px),
+    var(--app-bg);
 }
 
 .workspace-tabs {
@@ -2016,6 +2137,15 @@ async function logout() {
   align-items: stretch;
   gap: 10px;
   margin: -2px 0 12px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, var(--glass-border-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    var(--glass-surface-color);
+  box-shadow: 0 14px 32px var(--shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.16);
 }
 
 .tabs-scroll {
@@ -2038,6 +2168,30 @@ async function logout() {
 
 .page-tabs :deep(.el-tabs__header) {
   margin: 0;
+  border-bottom: 0;
+}
+
+.page-tabs :deep(.el-tabs__nav) {
+  border: 0;
+  gap: 6px;
+}
+
+.page-tabs :deep(.el-tabs__item) {
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, var(--glass-border-color)) !important;
+  border-radius: var(--radius-sm) !important;
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 44%),
+    color-mix(in srgb, var(--glass-strong-surface-color) 76%, var(--surface-color));
+  box-shadow: 0 6px 14px var(--shadow-color);
+}
+
+.page-tabs :deep(.el-tabs__item.is-active) {
+  border-color: var(--accent-border-color) !important;
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 76%, var(--glass-surface-color));
+  box-shadow: 0 10px 22px var(--shadow-color);
 }
 
 .page-tabs :deep(.el-tabs__content) {
@@ -2049,6 +2203,23 @@ async function logout() {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  padding-right: 2px;
+}
+
+.workspace-body > :deep(.page) {
+  animation: workspace-fade-in 0.16s ease-out;
+}
+
+@keyframes workspace-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .profile-avatar-row {
@@ -2063,6 +2234,20 @@ async function logout() {
 }
 
 @media (max-width: 1024px) {
+  .server-clock span,
+  .weather-trigger span,
+  .user-button > span {
+    display: none;
+  }
+
+  .server-clock,
+  .weather-trigger,
+  .user-button {
+    width: 42px;
+    justify-content: center;
+    padding: 0;
+  }
+
   .manual-trigger span {
     display: none;
   }
@@ -2070,6 +2255,41 @@ async function logout() {
   .manual-trigger {
     width: 42px;
     padding: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    box-shadow: 8px 0 24px var(--shadow-color);
+  }
+
+  .shell > :deep(.el-container) {
+    padding-left: 64px;
+  }
+
+  .topbar {
+    height: 58px;
+    padding: 0 12px;
+  }
+
+  .topbar-title {
+    font-size: 16px;
+  }
+
+  .content {
+    height: calc(100vh - 58px);
+    padding: 12px;
+  }
+
+  .workspace-tabs {
+    gap: 8px;
+  }
+
+  .tabs-tools .el-button {
+    padding: 0 10px;
   }
 }
 </style>

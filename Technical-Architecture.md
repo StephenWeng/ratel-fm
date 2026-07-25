@@ -54,6 +54,11 @@ The frontend is organized by business pages:
 - `stores`: user, permission, menu, and context state.
 - `router`: routing and permission entry.
 
+The theme system is maintained by `stores/theme.ts` and `styles/global.css`. Pages should use variables such as `--surface-color`, `--text-color`, `--primary-color`, `--border-color`, and `--shadow-color` instead of fixed light or dark colors. The shell layout, common Element Plus controls, scrollbars, and focus states are adapted globally for light, dark, emerald, finance-blue, and vue-gold themes. Glassmorphism is controlled by `--glass-surface-color`, `--glass-strong-surface-color`, `--glass-border-color`, `--glass-highlight-color`, and `--glass-blur`. Tab containers, filter forms, table cells, statistic cards, and business sections should receive spacing, radii, shadows, translucent backgrounds, and backdrop blur from global styles. Page-level scoped styles should only handle module layout and must not override controls with fixed white backgrounds, fixed gray borders, or edge-hugging tables.
+The icon system continues to reuse Element Plus Icons and the project brand SVG. Menu icons, topbar entries, floating assistant, and voice entry use unified glass icon containers, without adding image assets from unclear sources.
+
+Dialog tables are globally guarded against horizontal overflow. Business pages should avoid fixed right columns and oversized minimum widths inside dialogs; long text should wrap or be ellipsized.
+
 AI entries are unified in the AI Assistant page:
 
 - ratel assistant for natural language conversation.

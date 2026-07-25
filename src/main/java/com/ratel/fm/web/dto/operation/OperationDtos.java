@@ -587,21 +587,21 @@ public final class OperationDtos {
              */
             String trackingNo,
             @Schema(description = "司机姓名。")
-            @ChineseName
+            @ChineseName(message = "司机姓名必须为1到20个中文字符", groups = {}, payload = {})
             @Size(max = 20, message = "司机姓名不能超过20个中文字符")
             /**
              * 记录组件 driverName：表示接口入参或出参中的 driverName 字段。
              */
             String driverName,
             @Schema(description = "司机电话。")
-            @ContactPhone
+            @ContactPhone(message = "司机电话必须为手机号或座机号", groups = {}, payload = {})
             @Size(max = 30, message = "司机电话长度不能超过30个字符")
             /**
              * 记录组件 driverPhone：表示接口入参或出参中的 driverPhone 字段。
              */
             String driverPhone,
             @Schema(description = "车牌号。")
-            @VehicleNo
+            @VehicleNo(message = "车牌号格式不正确", groups = {}, payload = {})
             @Size(max = 12, message = "车牌号长度不能超过12个字符")
             /**
              * 记录组件 vehicleNo：表示接口入参或出参中的 vehicleNo 字段。
@@ -730,21 +730,21 @@ public final class OperationDtos {
              */
             String trackingNo,
             @Schema(description = "司机姓名。")
-            @ChineseName
+            @ChineseName(message = "司机姓名必须为1到20个中文字符", groups = {}, payload = {})
             @Size(max = 20, message = "司机姓名不能超过20个中文字符")
             /**
              * 记录组件 driverName：表示接口入参或出参中的 driverName 字段。
              */
             String driverName,
             @Schema(description = "司机电话。")
-            @ContactPhone
+            @ContactPhone(message = "司机电话必须为手机号或座机号", groups = {}, payload = {})
             @Size(max = 30, message = "司机电话长度不能超过30个字符")
             /**
              * 记录组件 driverPhone：表示接口入参或出参中的 driverPhone 字段。
              */
             String driverPhone,
             @Schema(description = "车牌号。")
-            @VehicleNo
+            @VehicleNo(message = "车牌号格式不正确", groups = {}, payload = {})
             @Size(max = 12, message = "车牌号长度不能超过12个字符")
             /**
              * 记录组件 vehicleNo：表示接口入参或出参中的 vehicleNo 字段。

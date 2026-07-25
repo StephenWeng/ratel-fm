@@ -88,6 +88,31 @@ Use Git LFS or an external artifact repository before uploading large files.
 
 ## 8. Recent Changes
 
+### 2026-07-25: Vue Gold Theme
+
+- Added the `vue-gold` theme configuration, displayed as `Vue 金` in the theme selector.
+- Added Vue Gold variables for backgrounds, surfaces, borders, text, primary color, status colors, shadows, focus rings, and scrollbars.
+- Adjusted the ratel assistant logo alignment so the brand SVG appears visually centered in the avatar container.
+- Improved unified spacing for tabs, filters, tables, and statistic cards so content no longer sits against borders.
+- Replaced local hard-coded white panels and gray borders in inventory, accounts receivable/payable, and workflow center screens with theme variables.
+- Added global glassmorphism variables and container styling so the shell, panels, filters, tabs, tables, dialogs, and cards use translucent backgrounds, backdrop blur, soft borders, and shadows.
+- Added unified glass icon containers, highlights, translucent backgrounds, and soft shadows for menu icons, the brand icon, topbar icon buttons, ratel assistant, and the voice entry.
+
+### 2026-07-25: Voucher Dialog Horizontal Scrollbar Fix
+
+- Reduced voucher-line table column widths and hid horizontal overflow inside voucher dialogs.
+- Removed the fixed action column from the attachment table to avoid bottom horizontal scrollbars in empty attachment lists.
+- Attachment file names now wrap instead of stretching dialogs.
+- Added a global dialog-table overflow guard, and adjusted workflow definition node tables and workflow preview to adapt without horizontal scrolling.
+
+### 2026-07-24: UI Theme And Visual Hierarchy
+
+- Added global theme tokens for shadows, focus rings, scrollbars, radii, and control height.
+- Unified Element Plus tables, dialogs, poppers, inputs, buttons, menus, and tabs across themes.
+- Improved visual hierarchy for the shell sidebar, topbar, tab area, and content area.
+- Improved shell topbar and theme, user, and weather controls for narrow screens.
+- Replaced hard-coded light colors in the session-expired dialog with theme variables.
+
 ### 2026-07-23: Bilingual Root Documentation
 
 - `README.md` is the English GitHub overview.

@@ -528,7 +528,7 @@ onMounted(async () => {
 }
 
 .workflow-filter {
-  padding: 12px 12px 0;
+  padding: 16px 16px 2px;
   border: 0 !important;
   border-bottom: 1px solid var(--border-color) !important;
   border-radius: 0 !important;
@@ -547,7 +547,7 @@ onMounted(async () => {
 }
 
 .detail-title__meta {
-  color: #64748b;
+  color: var(--muted-text-color);
   font-size: 13px;
 }
 
@@ -557,7 +557,7 @@ onMounted(async () => {
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--warning-border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--warning-surface-color);
   color: var(--warning-color);
   font-weight: 700;
@@ -593,7 +593,7 @@ onMounted(async () => {
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-color);
   color: var(--text-color);
 }

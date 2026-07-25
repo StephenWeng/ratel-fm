@@ -759,11 +759,15 @@ async function enterResponse(response: AiAssistantResponse) {
   width: 52px;
   height: 52px;
   place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: var(--primary-color);
+  border: 1px solid color-mix(in srgb, var(--glass-border-color) 58%, var(--primary-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-color) 78%, var(--glass-surface-color));
   color: var(--primary-contrast);
-  box-shadow: 0 12px 28px var(--shadow-color);
+  box-shadow: 0 16px 34px var(--strong-shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -772,6 +776,7 @@ async function enterResponse(response: AiAssistantResponse) {
 .ai-fab :deep(.system-logo) {
   width: 28px;
   height: 28px;
+  transform: translate(1px, 1px);
 }
 
 .ai-panel {
@@ -784,11 +789,15 @@ async function enterResponse(response: AiAssistantResponse) {
   width: min(420px, calc(100vw - 32px));
   height: min(620px, calc(100vh - 112px));
   max-height: min(680px, calc(100vh - 112px));
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, var(--glass-border-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 40%),
+    var(--glass-strong-surface-color);
   color: var(--text-color);
-  box-shadow: 0 20px 45px var(--shadow-color);
+  box-shadow: 0 24px 58px var(--strong-shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
   overflow: hidden;
 }
 
@@ -856,7 +865,7 @@ async function enterResponse(response: AiAssistantResponse) {
   min-height: 58px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
-  background: var(--surface-color);
+  background: color-mix(in srgb, var(--glass-strong-surface-color) 84%, var(--surface-color));
 }
 
 .ai-title {
@@ -870,15 +879,20 @@ async function enterResponse(response: AiAssistantResponse) {
   display: grid;
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
   place-items: center;
   border-radius: 6px;
-  background: var(--primary-light-color);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 78%, var(--glass-surface-color));
   color: var(--primary-color);
+  box-shadow: inset 0 1px 0 var(--glass-highlight-color), 0 8px 18px var(--shadow-color);
 }
 
 .ai-title-icon :deep(.system-logo) {
   width: 22px;
   height: 22px;
+  transform: translate(1px, 1px);
 }
 
 .ai-title strong,
@@ -906,7 +920,9 @@ async function enterResponse(response: AiAssistantResponse) {
   padding: 14px;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--subtle-surface-color);
+  background:
+    linear-gradient(180deg, var(--surface-tint-color), transparent),
+    color-mix(in srgb, var(--glass-surface-color) 72%, var(--subtle-surface-color));
 }
 
 .ai-empty {

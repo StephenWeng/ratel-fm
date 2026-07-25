@@ -69,7 +69,7 @@
       </el-table>
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑流程定义' : '新增流程定义'" width="min(1120px, 94vw)" top="5vh">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑流程定义' : '新增流程定义'" width="min(1120px, 94vw)" top="5vh" class="workflow-definition-dialog">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="96px">
         <section class="business-form-section">
           <div class="section-heading"><span>基本信息</span></div>
@@ -119,10 +119,10 @@
             <el-button size="small" :icon="Plus" @click="addNode">新增节点</el-button>
           </div>
           <el-table :data="form.nodes" border>
-            <el-table-column label="节点名称" min-width="160">
+            <el-table-column label="节点名称" min-width="140">
               <template #default="{ row }"><el-input v-model="row.nodeName" maxlength="160" /></template>
             </el-table-column>
-            <el-table-column label="审批人来源" width="160">
+            <el-table-column label="审批人来源" width="145">
               <template #default="{ row }">
                 <el-select v-model="row.approverType" class="full" @change="clearApprover(row)">
                   <el-option label="指定人员" value="USER" />
@@ -131,7 +131,7 @@
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="审批人员" min-width="190">
+            <el-table-column label="审批人员" min-width="165">
               <template #default="{ row }">
                 <el-select
                   v-if="row.approverType === 'USER'"
@@ -146,7 +146,7 @@
                 <span v-else class="muted">按组织范围审批</span>
               </template>
             </el-table-column>
-            <el-table-column label="部门" min-width="180">
+            <el-table-column label="部门" min-width="150">
               <template #default="{ row }">
                 <el-select
                   v-if="row.approverType !== 'USER'"
@@ -160,7 +160,7 @@
                 <span v-else class="muted">-</span>
               </template>
             </el-table-column>
-            <el-table-column label="岗位" min-width="160">
+            <el-table-column label="岗位" min-width="135">
               <template #default="{ row }">
                 <el-select
                   v-if="row.approverType === 'DEPARTMENT_POSITION'"
@@ -455,7 +455,8 @@ onActivated(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow-x: hidden;
   padding: 6px 0 2px;
 }
 
@@ -495,6 +496,10 @@ onActivated(() => {
   height: 2px;
   flex: 0 0 44px;
   background: #93c5fd;
+}
+
+:global(.workflow-definition-dialog .el-dialog__body) {
+  overflow-x: hidden;
 }
 
 .muted {

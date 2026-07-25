@@ -72,6 +72,7 @@ Output requirements:
 - State limitations when evidence is insufficient.
 - Use recent context for follow-up questions.
 - Hide the question input and send button during retrieval and reasoning; show only the `思考中` indicator with a thinking animation until the answer is complete.
+- AI assistant and Business Agent UI must use global theme variables and support light, dark, emerald, finance-blue, and vue-gold themes.
 - For file-existence questions, list matched file names in the conclusion. For follow-up summarization, preserve the previous document topic. Resume queries should expand to candidate, engineer, work experience, project experience, and location terms.
 - For multi-item conclusions or key evidence, use numbered lines instead of hyphen bullets.
 - Do not expose chain-of-thought drafts, review notes, or think tags. Streaming and final answers must both be sanitized.

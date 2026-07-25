@@ -13,7 +13,7 @@
       </el-upload>
     </div>
 
-    <el-table :data="rows" size="small" border empty-text="暂无附件">
+    <el-table class="attachment-table" :data="rows" size="small" border empty-text="暂无附件">
       <el-table-column prop="displayName" label="附件名称" min-width="220">
         <template #default="{ row }">
           <span>{{ row.displayName }}</span>
@@ -21,11 +21,11 @@
         </template>
       </el-table-column>
       <el-table-column prop="suffix" label="后缀" width="90" />
-      <el-table-column label="大小" width="110">
+      <el-table-column label="大小" width="100">
         <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
       </el-table-column>
-      <el-table-column prop="uploaderUsername" label="上传人" width="120" />
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column prop="uploaderUsername" label="上传人" width="110" />
+      <el-table-column label="操作" width="230">
         <template #default="{ row, $index }">
           <div class="table-actions">
             <el-button v-if="!row.pending && canPreview(row)" size="small" :icon="View" @click="preview(row)">预览</el-button>
@@ -629,7 +629,9 @@ defineExpose({ reload, reset, uploadPending, addPendingFiles })
 .attachment-block {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  min-width: 0;
+  overflow-x: hidden;
+  border-top: 1px solid var(--border-color);
 }
 
 .attachment-header {
@@ -641,7 +643,24 @@ defineExpose({ reload, reset, uploadPending, addPendingFiles })
 
 .attachment-title {
   font-weight: 700;
-  color: #111827;
+  color: var(--heading-color);
+}
+
+.attachment-table {
+  width: 100%;
+}
+
+.attachment-table :deep(.el-table__inner-wrapper),
+.attachment-table :deep(.el-table__body-wrapper),
+.attachment-table :deep(.el-table__header-wrapper) {
+  overflow-x: hidden !important;
+}
+
+.attachment-table :deep(.cell) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .pending-tag {
@@ -671,10 +690,10 @@ defineExpose({ reload, reset, uploadPending, addPendingFiles })
 .preview-docx {
   min-height: 420px;
   padding: 22px 28px;
-  color: #111827;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  color: var(--text-color);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   line-height: 1.75;
 }
 
@@ -682,9 +701,9 @@ defineExpose({ reload, reset, uploadPending, addPendingFiles })
   min-height: 420px;
   padding: 12px;
   overflow: auto;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
 }
 
 .preview-xlsx :deep(table) {
@@ -698,18 +717,18 @@ defineExpose({ reload, reset, uploadPending, addPendingFiles })
 .preview-xlsx :deep(th) {
   min-width: 90px;
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-color);
   white-space: nowrap;
 }
 
 .preview-xlsx :deep(th) {
-  background: #f3f4f6;
+  background: var(--subtle-surface-color);
   font-weight: 600;
 }
 
 .preview-sheet-title {
   margin-bottom: 10px;
-  color: #111827;
+  color: var(--heading-color);
   font-weight: 700;
 }
 </style>

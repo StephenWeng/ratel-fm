@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
  *
  * <p>用于约束系统支持的主题编码，主题编码会写入 localStorage 并同步到 html[data-theme]。</p>
  */
-export type ThemeName = 'light' | 'dark' | 'emerald' | 'finance-blue'
+export type ThemeName = 'light' | 'dark' | 'emerald' | 'finance-blue' | 'vue-gold'
 
 /**
  * ThemeOption 类型定义。
@@ -38,7 +38,8 @@ export const themeOptions: ThemeOption[] = [
   { value: 'light', label: '浅色', description: '标准浅色办公主题', preview: '#1f7a5a' },
   { value: 'dark', label: '深色', description: '低亮度夜间办公主题', preview: '#7cc18b' },
   { value: 'emerald', label: '墨绿', description: '偏财务工作台的墨绿主题', preview: '#0f766e' },
-  { value: 'finance-blue', label: '金融蓝', description: '偏金融系统的蓝色主题', preview: '#2563eb' }
+  { value: 'finance-blue', label: '金融蓝', description: '偏金融系统的蓝色主题', preview: '#2563eb' },
+  { value: 'vue-gold', label: 'Vue 金', description: '参考 Vue3 生态的金色工作台主题', preview: '#d6a21f' }
 ]
 
 /**

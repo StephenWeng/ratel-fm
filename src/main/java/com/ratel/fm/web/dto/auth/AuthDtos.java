@@ -122,7 +122,7 @@ public final class AuthDtos {
             String username,
             @Schema(description = "人员真实姓名。")
             @NotBlank(message = "姓名不能为空")
-            @ChineseName
+            @ChineseName(message = "姓名必须为1到20个中文字符", groups = {}, payload = {})
             @Size(max = 20, message = "姓名不能超过20个中文字符")
             /**
              * 记录组件 realName：表示接口入参或出参中的 realName 字段。
@@ -155,13 +155,13 @@ public final class AuthDtos {
             String position,
             @Schema(description = "身份证号，同一所属公司内唯一，是唯一登录判断依据。")
             @NotBlank(message = "身份证号不能为空")
-            @ChineseIdentityNo
+            @ChineseIdentityNo(message = "身份证号格式不正确", groups = {}, payload = {})
             /**
              * 记录组件 identityNo：表示接口入参或出参中的 identityNo 字段。
              */
             String identityNo,
             @Schema(description = "联系电话；APP 端可作为终端标识。")
-            @ContactPhone
+            @ContactPhone(message = "联系电话必须为手机号或座机号", groups = {}, payload = {})
             @Size(max = 30, message = "联系电话长度不能超过30个字符")
             /**
              * 记录组件 phone：表示接口入参或出参中的 phone 字段。
@@ -202,7 +202,7 @@ public final class AuthDtos {
     public record UserUpdateRequest(
             @Schema(description = "人员真实姓名。")
             @NotBlank(message = "姓名不能为空")
-            @ChineseName
+            @ChineseName(message = "姓名必须为1到20个中文字符", groups = {}, payload = {})
             @Size(max = 20, message = "姓名不能超过20个中文字符")
             /**
              * 记录组件 realName：表示接口入参或出参中的 realName 字段。
@@ -234,13 +234,13 @@ public final class AuthDtos {
             String position,
             @Schema(description = "身份证号，同一所属公司内唯一，是唯一登录判断依据。")
             @NotBlank(message = "身份证号不能为空")
-            @ChineseIdentityNo
+            @ChineseIdentityNo(message = "身份证号格式不正确", groups = {}, payload = {})
             /**
              * 记录组件 identityNo：表示接口入参或出参中的 identityNo 字段。
              */
             String identityNo,
             @Schema(description = "联系电话；APP 端可作为终端标识。")
-            @ContactPhone
+            @ContactPhone(message = "联系电话必须为手机号或座机号", groups = {}, payload = {})
             @Size(max = 30, message = "联系电话长度不能超过30个字符")
             /**
              * 记录组件 phone：表示接口入参或出参中的 phone 字段。
@@ -478,20 +478,20 @@ public final class AuthDtos {
     public record ProfileUpdateRequest(
             @Schema(description = "姓名。")
             @NotBlank(message = "姓名不能为空")
-            @ChineseName
+            @ChineseName(message = "姓名必须为1到20个中文字符", groups = {}, payload = {})
             @Size(max = 20, message = "姓名不能超过20个中文字符")
             /**
              * 记录组件 realName：表示接口入参或出参中的 realName 字段。
              */
             String realName,
             @Schema(description = "身份证号。默认账号不允许自行修改。")
-            @ChineseIdentityNo
+            @ChineseIdentityNo(message = "身份证号格式不正确", groups = {}, payload = {})
             /**
              * 记录组件 identityNo：表示接口入参或出参中的 identityNo 字段。
              */
             String identityNo,
             @Schema(description = "联系方式，支持手机号或座机号。")
-            @ContactPhone
+            @ContactPhone(message = "联系电话必须为手机号或座机号", groups = {}, payload = {})
             @Size(max = 30, message = "联系电话长度不能超过30个字符")
             /**
              * 记录组件 phone：表示接口入参或出参中的 phone 字段。

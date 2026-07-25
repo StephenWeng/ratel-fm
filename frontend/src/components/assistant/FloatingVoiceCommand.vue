@@ -638,11 +638,15 @@ function supportsSpeechRecognition() {
   width: 52px;
   height: 52px;
   place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: #8b95a1;
-  color: #fff;
-  box-shadow: 0 12px 28px rgb(17 24 39 / 18%);
+  border: 1px solid color-mix(in srgb, var(--glass-border-color) 60%, var(--border-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--glass-strong-surface-color) 62%, #8b95a1);
+  color: var(--primary-color);
+  box-shadow: 0 16px 34px var(--strong-shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
   cursor: pointer;
   transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
@@ -669,8 +673,12 @@ function supportsSpeechRecognition() {
 }
 
 .voice-command-widget.is-listening .voice-fab {
-  background: #38bdf8;
-  box-shadow: 0 14px 30px rgb(56 189 248 / 28%);
+  border-color: color-mix(in srgb, var(--info-color) 52%, var(--glass-border-color));
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--info-surface-color) 72%, var(--glass-surface-color));
+  color: var(--info-color);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--info-color) 24%, transparent);
 }
 
 .voice-fab-slash {
@@ -678,7 +686,7 @@ function supportsSpeechRecognition() {
   width: 34px;
   height: 4px;
   border-radius: 999px;
-  background: #dc2626;
+  background: var(--danger-color);
   box-shadow: 0 0 0 1px rgb(255 255 255 / 72%);
   transform: rotate(-45deg);
   transform-origin: center;
@@ -689,11 +697,15 @@ function supportsSpeechRecognition() {
   right: 0;
   bottom: 64px;
   width: min(320px, calc(100vw - 32px));
-  border: 1px solid #d8e4f2;
-  border-radius: 8px;
-  background: var(--surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, var(--glass-border-color));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 40%),
+    var(--glass-strong-surface-color);
   color: var(--text-color);
-  box-shadow: 0 20px 45px rgb(17 24 39 / 18%);
+  box-shadow: 0 24px 58px var(--strong-shadow-color);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.18);
   overflow: hidden;
 }
 
@@ -716,8 +728,18 @@ function supportsSpeechRecognition() {
 }
 
 .voice-title .el-icon {
-  color: #245c8f;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--border-color) 64%, var(--glass-border-color));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--primary-light-color) 76%, var(--glass-surface-color));
+  color: var(--primary-color);
   font-size: 18px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight-color), 0 8px 18px var(--shadow-color);
 }
 
 .voice-panel-body {
@@ -738,7 +760,7 @@ function supportsSpeechRecognition() {
   width: 3px;
   height: 10px;
   border-radius: 2px;
-  background: #38bdf8;
+  background: var(--info-color);
   animation: voice-wave 0.8s ease-in-out infinite alternate;
 }
 
@@ -790,8 +812,10 @@ function supportsSpeechRecognition() {
 .voice-transcript {
   padding: 8px;
   border: 1px solid var(--soft-border-color);
-  border-radius: 6px;
-  background: var(--subtle-surface-color);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, var(--glass-highlight-color), transparent 42%),
+    color-mix(in srgb, var(--glass-surface-color) 76%, var(--subtle-surface-color));
   color: var(--secondary-text-color);
   font-size: 12px;
 }

@@ -127,12 +127,18 @@ When Business Agent is disabled:
 
 - Pages should show business conclusions and executable actions first.
 - Tables must support scrolling and must not hide bottom content.
+- Tables inside dialogs should adapt to available width and must not show meaningless bottom horizontal scrollbars; field-heavy business details should prefer grouping, wrapping, or row editing to reduce horizontal width.
 - Login, save, delete, and approval failures must show explicit messages.
 - Button labels should describe user actions, not technical implementation.
+- Colors, borders, shadows, radii, scrollbars, and focus states must use unified theme tokens for light, dark, emerald, finance-blue, and vue-gold themes.
+- The current UI direction uses glassmorphism: container layers use translucent backgrounds, backdrop blur, soft borders, and shadows; inputs, table bodies, and financial figures must prioritize readability and avoid excessive transparency.
+- Icons should prefer the existing open-source icon system and use unified glass icon containers for highlights, translucent backgrounds, and soft shadows; do not mix in external image icons with unclear licensing.
+- Module tabs, filters, tables, and statistic cards must keep stable inner spacing; content must not sit directly against borders.
+- UI refinement should use global theme tokens, unified tab containers, table padding, light shadows, and status colors instead of page-level hard-coded white panels and gray borders.
 - AI output must not expose prompt, retrieval chunks, raw JSON, or debug fields.
 - Loading states should use necessary text and button spinners only.
 - AI component status should show deployment-facing model information clearly, including configured and installed Ollama models.
-- ratel assistant hides the question input while thinking; it returns to the `输入问题` state after the answer finishes.
+- ratel assistant opens with a taller stable panel; while thinking it hides the question input and send button, shows only `思考中` with a thinking animation, and returns to the `输入问题` state after the answer finishes.
 - File-existence answers must name matched files in the conclusion, and follow-up summary requests must keep the previous document topic.
 
 ## 9. Non-Goals
