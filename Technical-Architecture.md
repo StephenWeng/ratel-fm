@@ -67,6 +67,8 @@ AI entries are unified in the AI Assistant page:
 
 The floating ratel assistant uses a stable taller panel on first open. During retrieval and reasoning it hides the question input and send button, and shows only `思考中` with a thinking animation.
 
+The floating send area provides a dropdown `思考` / `AI写作` intent selector, with `思考` as the default. `思考` calls `/api/ai/assistant/stream` with `reasoning` mode, and `AssistantModelRouter` routes it to the reasoning model use case. While waiting for the final answer, the frontend shows staged thinking progress and removes that temporary message when the answer arrives. `AI写作` calls `/api/ai/writing/generate` to generate and download files. Backend `AiWritingService` uses Apache POI for xlsx, docx, and pptx, and PDFBox for pdf. Purchase-list output reuses `OperationService.exportPurchaseOrders`; daily purchase statistics aggregate current-company purchase orders and lines deterministically; business analysis reports read purchasing, AR/AP, and inventory metrics through `BusinessMetricsService` instead of falling back to generic placeholder documents.
+
 Follow-up retrieval augments short requests such as summary or recap with recent user questions and conversation summary. Knowledge retrieval also expands document and resume terms so user documents are not displaced by generic system-module results.
 
 Both direct-answer paths and model prompts constrain answer formatting: multi-item conclusions and evidence use numbered lines instead of hyphen bullets.
@@ -86,6 +88,8 @@ Core requirements:
 - Status fields must map to business actions.
 - Attachments, workflow, vouchers, and source documents keep traceable relationships.
 - Important operations write audit logs and business timelines.
+
+Voucher create/edit uses an online-voucher-style entry panel. The frontend filters blank lines before saving and submits valid lines only. Backend `Voucher` stores customer, department, business user, bookkeeper, and maker snapshots. Summary search matches both voucher-header summary and voucher-line summaries. The online voucher canvas draws a top-right to bottom-left slash across debit and credit amount areas for empty rows to mark them invalid.
 
 ## 5. Security Architecture
 

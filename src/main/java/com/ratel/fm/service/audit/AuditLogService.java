@@ -8,6 +8,7 @@ import com.ratel.fm.domain.auth.UserAccount;
 import com.ratel.fm.repository.audit.UserOperationLogRepository;
 import com.ratel.fm.web.dto.audit.AuditDtos.OperationLogPage;
 import com.ratel.fm.web.dto.audit.AuditDtos.OperationLogView;
+import com.ratel.fm.common.concurrent.NamedDaemonThreadFactory;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,9 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 关键业务操作审计日志服务。
@@ -53,6 +57,8 @@ public class AuditLogService {
      * 字段 transactionTemplate：保存 transactionTemplate 对应的业务数据、运行配置或依赖对象，供本类逻辑读取和维护。
      */
     private final TransactionTemplate transactionTemplate;
+    /** 审计数据库写入使用独立有界队列，避免业务事务持有连接时同步申请第二条连接。 */
+    private final ThreadPoolExecutor auditExecutor;
 
     /**
      * 构造 AuditLogService 实例。
@@ -66,6 +72,15 @@ public class AuditLogService {
         this.repository = repository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.auditExecutor = new ThreadPoolExecutor(
+                1,
+                2,
+                60,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(1000),
+                new NamedDaemonThreadFactory("audit-db"),
+                new ThreadPoolExecutor.AbortPolicy()
+        );
     }
 
     /**
@@ -158,13 +173,34 @@ public class AuditLogService {
                 isSuccess(result), resultText, parameterText, responseText, impactText
         );
 
-        // 步骤4-5：数据库日志用独立事务写入并吞掉异常，避免审计表故障反向影响主业务提交。
+        // 步骤4-5：数据库日志在有界后台队列中独立落库，避免并发业务事务与审计事务争抢连接池。
+        try {
+            auditExecutor.execute(() -> persistAuditLog(
+                    operator, meta, operationTime, action, parameterText, resultText, responseText, impactText
+            ));
+        } catch (Exception ex) {
+            LOGGER.warn("数据库操作日志队列已满，已保留文件审计且不阻塞业务。action={}, operatorUsername={}, message={}",
+                    action, operator.username(), ex.getMessage(), ex);
+        }
+    }
+
+    /** 在业务调用线程之外使用独立事务写入数据库审计日志。 */
+    private void persistAuditLog(
+            AuditOperator operator,
+            AuditActionMeta meta,
+            OffsetDateTime operationTime,
+            String action,
+            String parameterText,
+            String resultText,
+            String responseText,
+            String impactText
+    ) {
         try {
             transactionTemplate.executeWithoutResult(status -> repository.save(buildLog(
                     operator, meta, operationTime, action, parameterText, resultText, responseText, impactText
             )));
         } catch (Exception ex) {
-            LOGGER.warn("数据库操作日志写入失败，业务主流程不受影响。action={}, operatorUsername={}, message={}",
+            LOGGER.warn("数据库操作日志写入失败，已保留文件审计且业务主流程不受影响。action={}, operatorUsername={}, message={}",
                     action, operator.username(), ex.getMessage(), ex);
         }
     }

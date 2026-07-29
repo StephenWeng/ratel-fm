@@ -42,11 +42,13 @@ public class AiOcrService {
      */
     public String recognize(String systemPrompt, String userPrompt, List<VisionInput> inputs) {
         List<String> reasons = new ArrayList<>();
+        int availableCount = 0;
         for (AiVisionRecognizer recognizer : recognizers) {
             if (!recognizer.available()) {
                 reasons.add(recognizer.displayName() + "不可用：" + recognizer.unavailableReason());
                 continue;
             }
+            availableCount++;
             try {
                 String answer = recognizer.recognize(systemPrompt, userPrompt, inputs);
                 if (answer != null && !answer.isBlank()) {
@@ -56,6 +58,11 @@ public class AiOcrService {
             } catch (RuntimeException ex) {
                 reasons.add(recognizer.displayName() + "调用失败：" + readableMessage(ex));
             }
+        }
+        if (availableCount > 0) {
+            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, ResponseCode.LOAD_CLIENT_ERROR,
+                    "OCR 模型已检测为可用，但本次识别执行失败。可能是 CPU、内存或磁盘资源不足，模型服务繁忙或请求超时；请释放资源后重试。详情："
+                            + reasons.stream().filter(item -> item != null && !item.isBlank()).collect(Collectors.joining("；")));
         }
         throw new BusinessException(HttpStatus.BAD_GATEWAY, ResponseCode.LOAD_CLIENT_ERROR,
                 "当前没有可用的 OCR 能力：" + reasons.stream().filter(item -> item != null && !item.isBlank())

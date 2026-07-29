@@ -578,17 +578,23 @@ public class KnowledgeSearchService {
         if (containsAny(keyword, "发货", "发运", "运输", "物流")) {
             queries.add(keyword + " 物流单 运输单 实际发运日期 计划发运日期 实际送达日期 承运商 运单号");
         }
-        if (containsAny(keyword, "库存", "物料", "入库", "出库", "调拨")) {
-            queries.add(keyword + " 库存流水 物料库存 入库数量 出库数量 调拨数量 库存数量");
+        if (containsAny(keyword, "库存", "物料", "入库", "出库", "调拨", "存货", "库龄", "呆滞料", "积压", "压库", "不动")) {
+            queries.add(keyword + " 库存流水 物料库存 入库数量 出库数量 调拨数量 库存数量 库龄 存货周转 呆滞料 在途库存");
         }
         if (containsAny(keyword, "采购", "供应商", "订单")) {
             queries.add(keyword + " 采购订单 供应商 物料 明细 订单日期 状态");
         }
-        if (containsAny(keyword, "应收", "应付", "付款", "收款", "逾期")) {
-            queries.add(keyword + " 应收应付 往来单位 金额 已收已付 未结清 到期日");
+        if (containsAny(keyword, "应收", "应付", "付款", "收款", "逾期", "账龄", "账期", "回款", "催款", "欠款", "未到票", "到票", "DSO", "DPO")) {
+            queries.add(keyword + " 应收应付 往来单位 金额 已收已付 未结清 到期日 账龄 账期 回款 付款计划 发票匹配");
         }
-        if (containsAny(keyword, "凭证", "分录", "借方", "贷方")) {
-            queries.add(keyword + " 财务凭证 凭证号 摘要 借方 贷方 过账");
+        if (containsAny(keyword, "现金流", "资金", "营运资本", "现金转换周期", "资金缺口", "账上钱", "钱够不够")) {
+            queries.add(keyword + " 现金流 资金计划 可用资金 应收回款 应付付款 未来30天到期 营运资本 现金转换周期");
+        }
+        if (containsAny(keyword, "凭证", "分录", "借方", "贷方", "暂估", "红冲", "冲回", "摊销", "折旧", "关账", "月结")) {
+            queries.add(keyword + " 财务凭证 凭证号 摘要 借方 贷方 过账 未过账 暂估入账 红冲 月末结账");
+        }
+        if (containsAny(keyword, "对账", "勾稽", "三单", "三流", "对不上", "差异", "不一致", "票货", "货票款")) {
+            queries.add(keyword + " 对账 勾稽 三单匹配 采购订单 入库 应付 发票 金额差异 数量差异 来源单号");
         }
         if (containsAny(keyword, "附件", "文件", "资料", "文档", "知识库")) {
             queries.add(keyword + " 业务附件 文件 原文件名 上传资料 本地知识库 文档资料");
@@ -687,7 +693,7 @@ public class KnowledgeSearchService {
                 目标是提高本地知识库检索召回，不回答用户问题，不编造业务数据。
                 改写要求：
                 1. 保留用户输入中的单号、编号、日期、物料名、供应商、客户等关键实体；
-                2. 补充系统常用字段名和同义词，例如物流单、运输单、实际发运日期、采购订单、库存流水、应收应付、凭证号、审批流程、基础字典、项目、部门、岗位、物料、供应商、客户；
+                2. 补充系统常用字段名和同义词，例如物流单、运输单、实际发运日期、采购订单、库存流水、库龄、呆滞料、应收应付、账龄、账期、回款、付款计划、现金流、营运资本、凭证号、暂估、月末结账、三单匹配、审批流程、基础字典、项目、部门、岗位、物料、供应商、客户；
                 3. 输出 2 到 5 个中文检索 query，每个不超过 80 字；
                 4. 不要输出 Markdown，不要输出对象，只输出数组。
                 """;
@@ -734,14 +740,31 @@ public class KnowledgeSearchService {
         addTermIfContains(normalized, terms, "发运", "物流", "运输", "实际发运", "计划发运");
         addTermIfContains(normalized, terms, "送达", "物流", "运输", "已送达");
         addTermIfContains(normalized, terms, "采购", "采购单", "供应商", "采购订单");
-        addTermIfContains(normalized, terms, "库存", "库存流水", "入库", "出库", "调拨", "物料");
-        addTermIfContains(normalized, terms, "应收", "应收应付", "未结", "到期", "逾期", "客户");
-        addTermIfContains(normalized, terms, "应付", "应收应付", "未结", "到期", "逾期", "供应商");
+        addTermIfContains(normalized, terms, "库存", "库存流水", "入库", "出库", "调拨", "物料", "库龄", "呆滞料", "存货周转");
+        addTermIfContains(normalized, terms, "存货", "库存", "库存流水", "物料", "库龄", "存货周转");
+        addTermIfContains(normalized, terms, "呆滞", "库存", "库龄", "呆滞料", "滞销", "积压");
+        addTermIfContains(normalized, terms, "压库", "库存", "积压", "呆滞料", "滞销");
+        addTermIfContains(normalized, terms, "应收", "应收应付", "未结", "到期", "逾期", "客户", "账龄", "回款");
+        addTermIfContains(normalized, terms, "应付", "应收应付", "未结", "到期", "逾期", "供应商", "账龄", "付款计划");
+        addTermIfContains(normalized, terms, "账龄", "应收应付", "逾期", "到期", "未结", "账期");
+        addTermIfContains(normalized, terms, "账期", "应收应付", "到期", "付款条件", "信用期");
+        addTermIfContains(normalized, terms, "催款", "应收", "客户", "回款", "逾期", "未结");
+        addTermIfContains(normalized, terms, "欠款", "应收应付", "未结", "逾期", "待收", "待付");
+        addTermIfContains(normalized, terms, "DSO", "应收", "回款", "应收周转", "周转天数");
+        addTermIfContains(normalized, terms, "DPO", "应付", "付款", "应付周转", "周转天数");
         addTermIfContains(normalized, terms, "出纳", "出纳流水", "收款", "付款", "银行账户", "资金流水");
         addTermIfContains(normalized, terms, "回款", "收款", "出纳流水", "客户回款", "银行账户");
         addTermIfContains(normalized, terms, "付款", "出纳流水", "供应商付款", "银行账户", "资金流水");
         addTermIfContains(normalized, terms, "账户流水", "出纳流水", "银行账户", "收款", "付款");
-        addTermIfContains(normalized, terms, "凭证", "财务凭证", "过账", "借方", "贷方");
+        addTermIfContains(normalized, terms, "现金流", "资金", "应收回款", "应付付款", "资金缺口", "现金流量");
+        addTermIfContains(normalized, terms, "营运资本", "应收", "应付", "库存", "资金", "现金转换周期");
+        addTermIfContains(normalized, terms, "现金转换周期", "营运资本", "应收周转", "应付周转", "存货周转");
+        addTermIfContains(normalized, terms, "账上钱", "资金", "现金", "银行账户", "可用资金");
+        addTermIfContains(normalized, terms, "凭证", "财务凭证", "过账", "借方", "贷方", "未过账");
+        addTermIfContains(normalized, terms, "暂估", "凭证", "暂估入账", "冲回", "月末结账");
+        addTermIfContains(normalized, terms, "关账", "结账", "会计期间", "未过账", "试算平衡");
+        addTermIfContains(normalized, terms, "三单", "采购订单", "入库", "应付", "发票", "对账");
+        addTermIfContains(normalized, terms, "对不上", "对账", "差异", "不一致", "来源单号");
         addTermIfContains(normalized, terms, "附件", "业务附件", "文件", "上传");
         addTermIfContains(normalized, terms, "文件", "附件", "资料", "文档", "本地知识库", "原文件名");
         addTermIfContains(normalized, terms, "资料", "文件", "文档", "本地知识库", "原文件名");

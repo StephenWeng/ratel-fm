@@ -1290,6 +1290,11 @@ export const api = {
   askAssistant: (question: string, mode = 'hybrid', context?: AiAssistantContext) =>
     postData<AiAssistantResponse>('/api/ai/assistant', { question, mode, ...(context || {}) }, { timeout: 180000 }),
   /**
+   * 字段 generateAiWritingFile：根据 ratel助手 AI写作意图生成文件。
+   */
+  generateAiWritingFile: (question: string, context?: AiAssistantContext) =>
+    postBlob('/api/ai/writing/generate', { question, mode: 'writing', ...(context || {}) }),
+  /**
    * 字段 streamAssistant：使用 fetch POST + SSE 流式读取 ratel助手回答。
    */
   streamAssistant: async (question: string, mode = 'hybrid', context?: AiAssistantContext, handlers?: AiAssistantStreamHandlers) =>

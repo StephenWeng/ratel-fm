@@ -615,7 +615,7 @@ function isSilentErrorNotice(config?: AxiosRequestConfig) {
  */
 function shouldSuppressApiResult(url?: string) {
   const text = url || ''
-  return text.includes('/api/ai/assistant') || text.includes('/api/auth/menu-usages')
+  return text.includes('/api/ai/assistant') || text.includes('/api/ai/writing') || text.includes('/api/auth/menu-usages')
 }
 
 /**

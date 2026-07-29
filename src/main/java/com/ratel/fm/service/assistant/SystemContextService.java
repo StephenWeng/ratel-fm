@@ -195,6 +195,8 @@ public class SystemContextService {
 
         // 变量说明：sections 保存当前步骤计算、查询或转换得到的中间结果。
         List<String> sections = new ArrayList<>();
+        List<String> focusedModules = FinancialIntentTerms.selectedModules(question);
+        boolean focusedBusinessQuestion = !focusedModules.isEmpty();
         sections.add(lines(
                 "当前系统实时概览",
                 "当前日期: " + today,
@@ -202,31 +204,44 @@ public class SystemContextService {
                 "当前用户: " + value(user.realName()) + "(" + value(user.username()) + ")",
                 "当前所属公司: " + value(CompanyScope.currentCompanyCode())
         ));
-        if (canViewSystemContext(permissions, menuCodes)) {
+        if (!focusedBusinessQuestion && canViewSystemContext(permissions, menuCodes)) {
             sections.add(systemManageContext(permissions, menuCodes));
         }
-        if (permissions.contains(PermissionCode.BASIC_DICT_MANAGE) && hasMenu(menuCodes, "PAGE_BASIC_DICTIONARIES")) {
+        if (!focusedBusinessQuestion && permissions.contains(PermissionCode.BASIC_DICT_MANAGE) && hasMenu(menuCodes, "PAGE_BASIC_DICTIONARIES")) {
             sections.add(basicContext());
         }
-        if (canViewFinanceContext(permissions, menuCodes)) {
-            sections.add(financeContext(permissions, menuCodes, monthStart, monthEnd, question));
+        if (focusedBusinessQuestion) {
+            for (String module : focusedModules) {
+                switch (module) {
+                    case "finance" -> {
+                        if (canViewFinanceContext(permissions, menuCodes)) sections.add(financeContext(permissions, menuCodes, monthStart, monthEnd, question));
+                    }
+                    case "arAp" -> {
+                        if (permissions.contains(PermissionCode.AR_AP_MANAGE) && hasAnyMenu(menuCodes, "PAGE_AR_AP", "PAGE_AR_AP_STATS")) sections.add(arApContext(monthStart, monthEnd, today, question));
+                    }
+                    case "inventory" -> {
+                        if (permissions.contains(PermissionCode.INVENTORY_MANAGE) && hasMenu(menuCodes, "PAGE_INVENTORY")) sections.add(inventoryContext(monthStart, monthEnd, question));
+                    }
+                    case "purchase" -> {
+                        if (permissions.contains(PermissionCode.PURCHASE_MANAGE) && hasMenu(menuCodes, "PAGE_PURCHASE")) sections.add(purchaseContext(monthStart, monthEnd, question));
+                    }
+                    case "shipment" -> {
+                        if (permissions.contains(PermissionCode.LOGISTICS_MANAGE) && hasMenu(menuCodes, "PAGE_SHIPMENTS")) sections.add(shipmentContext(monthStart, monthEnd, question));
+                    }
+                    default -> { }
+                }
+            }
+        } else {
+            if (canViewFinanceContext(permissions, menuCodes)) sections.add(financeContext(permissions, menuCodes, monthStart, monthEnd, question));
+            if (permissions.contains(PermissionCode.PURCHASE_MANAGE) && hasMenu(menuCodes, "PAGE_PURCHASE")) sections.add(purchaseContext(monthStart, monthEnd, question));
+            if (permissions.contains(PermissionCode.LOGISTICS_MANAGE) && hasMenu(menuCodes, "PAGE_SHIPMENTS")) sections.add(shipmentContext(monthStart, monthEnd, question));
+            if (permissions.contains(PermissionCode.INVENTORY_MANAGE) && hasMenu(menuCodes, "PAGE_INVENTORY")) sections.add(inventoryContext(monthStart, monthEnd, question));
+            if (permissions.contains(PermissionCode.AR_AP_MANAGE) && hasAnyMenu(menuCodes, "PAGE_AR_AP", "PAGE_AR_AP_STATS")) sections.add(arApContext(monthStart, monthEnd, today, question));
         }
-        if (permissions.contains(PermissionCode.PURCHASE_MANAGE) && hasMenu(menuCodes, "PAGE_PURCHASE")) {
-            sections.add(purchaseContext(monthStart, monthEnd, question));
-        }
-        if (permissions.contains(PermissionCode.LOGISTICS_MANAGE) && hasMenu(menuCodes, "PAGE_SHIPMENTS")) {
-            sections.add(shipmentContext(monthStart, monthEnd, question));
-        }
-        if (permissions.contains(PermissionCode.INVENTORY_MANAGE) && hasMenu(menuCodes, "PAGE_INVENTORY")) {
-            sections.add(inventoryContext(monthStart, monthEnd, question));
-        }
-        if (permissions.contains(PermissionCode.AR_AP_MANAGE) && hasAnyMenu(menuCodes, "PAGE_AR_AP", "PAGE_AR_AP_STATS")) {
-            sections.add(arApContext(monthStart, monthEnd, today, question));
-        }
-        if (canViewAttachmentContext(permissions, menuCodes)) {
+        if (!focusedBusinessQuestion && canViewAttachmentContext(permissions, menuCodes)) {
             sections.add(attachmentContext());
         }
-        if (permissions.contains(PermissionCode.AUDIT_LOG_VIEW) && hasMenu(menuCodes, "PAGE_OPERATION_LOGS")) {
+        if (!focusedBusinessQuestion && permissions.contains(PermissionCode.AUDIT_LOG_VIEW) && hasMenu(menuCodes, "PAGE_OPERATION_LOGS")) {
             sections.add(auditContext(monthStartTime, monthEndTime));
         }
         return sections.stream()
@@ -352,11 +367,17 @@ public class SystemContextService {
         List<PurchaseOrder> monthOrders = orders.stream()
                 .filter(item -> inRange(item.getOrderDate(), monthStart, monthEnd))
                 .toList();
+        LocalDate halfYearStart = LocalDate.now().minusMonths(6);
+        List<PurchaseOrder> halfYearOrders = orders.stream()
+                .filter(item -> item.getOrderDate() != null && !item.getOrderDate().isBefore(halfYearStart))
+                .toList();
         List<String> contextLines = new ArrayList<>();
         contextLines.add("采购管理上下文");
         contextLines.add("采购单总数: " + orders.size() + "，本月采购单数: " + monthOrders.size());
         contextLines.add("采购状态分布: " + enumCounts(orders, PurchaseOrder::getStatus));
         contextLines.add("本月采购总金额: " + money(sum(monthOrders, PurchaseOrder::getTotalAmountCny)));
+        contextLines.add("近半年采购单数: " + halfYearOrders.size() + "，近半年采购人民币金额: "
+                + money(sum(halfYearOrders, PurchaseOrder::getTotalAmountCny)));
         contextLines.add("最近采购单: " + recent(orders.stream().sorted(Comparator.comparing(PurchaseOrder::getOrderDate, Comparator.nullsLast(Comparator.reverseOrder()))).toList(),
                 item -> item.getOrderNo() + "/" + item.getOrderDate() + "/" + item.getSupplierName() + "/" + money(item.getTotalAmountCny()), 5));
         String matchedDetail = matchedPurchaseContext(question, orders);
@@ -637,11 +658,18 @@ public class SystemContextService {
         List<InventoryLedger> monthLedgers = ledgers.stream()
                 .filter(item -> inRange(item.getMovementDate(), monthStart, monthEnd))
                 .toList();
+        LocalDate halfYearStart = LocalDate.now().minusMonths(6);
+        List<InventoryLedger> halfYearLedgers = ledgers.stream()
+                .filter(item -> item.getMovementDate() != null && !item.getMovementDate().isBefore(halfYearStart))
+                .toList();
         List<String> contextLines = new ArrayList<>();
         contextLines.add("库存管理上下文");
         contextLines.add("库存流水总数: " + ledgers.size() + "，本月库存流水数: " + monthLedgers.size());
         contextLines.add("库存变动类型分布: " + enumCounts(ledgers, InventoryLedger::getMovementType));
         contextLines.add("本月库存变动数量合计: " + money(sum(monthLedgers, InventoryLedger::getQuantity)));
+        contextLines.add("近半年库存流水数: " + halfYearLedgers.size() + "，近半年变动数量合计: "
+                + money(sum(halfYearLedgers, InventoryLedger::getQuantity)) + "，入库未制证数: "
+                + halfYearLedgers.stream().filter(item -> item.getVoucherId() == null).count());
         contextLines.add("最近库存流水: " + recent(ledgers.stream().sorted(Comparator.comparing(InventoryLedger::getMovementDate, Comparator.nullsLast(Comparator.reverseOrder()))).toList(),
                 item -> item.getMovementNo() + "/" + item.getMovementDate() + "/" + item.getMovementType() + "/" + item.getItemName() + "/" + money(item.getQuantity()), 5));
         String matchedDetail = matchedInventoryContext(question, ledgers);
@@ -672,6 +700,16 @@ public class SystemContextService {
                 .filter(item -> item.getDueDate() != null && item.getDueDate().isBefore(today))
                 .filter(item -> item.getStatus() == null || !"CLOSED".equals(item.getStatus().name()))
                 .toList();
+        LocalDate halfYearStart = today.minusMonths(6);
+        List<ArApBill> halfYearBills = bills.stream()
+                .filter(item -> item.getBillDate() != null && !item.getBillDate().isBefore(halfYearStart))
+                .toList();
+        List<ArApBill> halfYearReceivables = halfYearBills.stream()
+                .filter(item -> item.getBillType() != null && "RECEIVABLE".equals(item.getBillType().name()))
+                .toList();
+        List<ArApBill> halfYearPayables = halfYearBills.stream()
+                .filter(item -> item.getBillType() != null && "PAYABLE".equals(item.getBillType().name()))
+                .toList();
         List<String> contextLines = new ArrayList<>();
         contextLines.add("应收应付上下文");
         contextLines.add("应收应付单总数: " + bills.size() + "，本月新增单据数: " + monthBills.size() + "，本月到期单据数: " + dueThisMonth.size());
@@ -679,6 +717,9 @@ public class SystemContextService {
         contextLines.add("应收应付状态分布: " + enumCounts(bills, ArApBill::getStatus));
         contextLines.add("未结余额合计: " + money(bills.stream().map(item -> safe(item.getAmountCny()).subtract(safe(item.getPaidAmountCny()))).reduce(BigDecimal.ZERO, BigDecimal::add)));
         contextLines.add("逾期未结单据数: " + overdue.size());
+        contextLines.add("近半年应收单数: " + halfYearReceivables.size() + "，待收人民币余额: " + money(remainingCny(halfYearReceivables))
+                + "；近半年应付单数: " + halfYearPayables.size() + "，待付人民币余额: " + money(remainingCny(halfYearPayables)));
+        contextLines.add("近半年往来单位未结余额排名: " + partnerBalanceSummary(halfYearBills));
         contextLines.add("最近到期单据: " + recent(bills.stream().sorted(Comparator.comparing(ArApBill::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))).toList(),
                 item -> item.getBillNo() + "/" + item.getDueDate() + "/" + item.getPartnerName() + "/" + money(safe(item.getAmountCny()).subtract(safe(item.getPaidAmountCny()))), 5));
         String matchedDetail = matchedArApContext(question, bills);
@@ -686,6 +727,27 @@ public class SystemContextService {
             contextLines.add(matchedDetail);
         }
         return String.join("\n", contextLines);
+    }
+
+    /** 汇总应收应付单的未结人民币余额。 */
+    private BigDecimal remainingCny(List<ArApBill> bills) {
+        return bills.stream()
+                .map(item -> safe(item.getAmountCny()).subtract(safe(item.getPaidAmountCny())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** 按往来单位汇总最近半年未结余额，供专业术语和日常问法复用同一事实口径。 */
+    private String partnerBalanceSummary(List<ArApBill> bills) {
+        return bills.stream()
+                .collect(Collectors.groupingBy(item -> value(item.getPartnerName()),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                item -> safe(item.getAmountCny()).subtract(safe(item.getPaidAmountCny())),
+                                BigDecimal::add)))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .limit(8)
+                .map(item -> item.getKey() + "/" + money(item.getValue()))
+                .collect(Collectors.joining("；"));
     }
 
     /**

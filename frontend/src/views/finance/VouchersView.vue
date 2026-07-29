@@ -135,20 +135,8 @@
             </el-form-item>
           </el-col>
           <el-col :xs="24" :sm="8">
-            <el-form-item label="项目" prop="projectCode">
-              <el-select v-model="form.projectCode" clearable filterable class="full" placeholder="请选择项目" @change="onProjectChange">
-                <el-option v-for="item in projectOptions" :key="item.id" :label="item.name" :value="item.code" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="8">
             <el-form-item label="来源单号" prop="sourceBizNo">
               <el-input v-model="form.sourceBizNo" :maxlength="fieldLimits.sourceBillNo" show-word-limit />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="8">
-            <el-form-item label="摘要" prop="summary">
-              <el-input v-model="form.summary" :maxlength="fieldLimits.summary" show-word-limit />
             </el-form-item>
           </el-col>
         </el-row>
@@ -170,74 +158,88 @@
             </el-upload>
           </div>
         </div>
-        <div class="voucher-lines-table">
-          <el-table :data="form.lines" border>
-            <el-table-column label="科目" min-width="230">
-              <template #default="{ row }">
+        <div class="voucher-entry-paper">
+          <div class="voucher-entry-title">记 账 凭 证</div>
+          <div class="voucher-entry-meta">
+            <span>记 字 {{ editingId ? '已生成' : '待生成' }}</span>
+            <span>制单日期：{{ form.voucherDate }}</span>
+            <span>附单据数：</span>
+          </div>
+          <div class="voucher-entry-grid">
+            <div class="voucher-entry-head">摘要</div>
+            <div class="voucher-entry-head">科目名称</div>
+            <div class="voucher-entry-head">借方金额</div>
+            <div class="voucher-entry-head">贷方金额</div>
+            <template v-for="(line, index) in form.lines" :key="index">
+              <div class="voucher-entry-cell">
+                <el-input
+                  v-model="line.summary"
+                  type="textarea"
+                  :autosize="{ minRows: 2, maxRows: 2 }"
+                  :class="{ 'line-input-error': lineSummaryTouched[index] && lineSummaryError(line) }"
+                  :maxlength="fieldLimits.summary"
+                  :disabled="readonly"
+                  placeholder="输入分录摘要"
+                  @blur="touchLineSummary(index)"
+                />
+                <div v-if="lineSummaryTouched[index] && lineSummaryError(line)" class="line-field-error">{{ lineSummaryError(line) }}</div>
+              </div>
+              <div class="voucher-entry-cell">
                 <el-cascader
-                  v-model="row.subjectId"
+                  v-model="line.subjectId"
                   :options="subjectCascaderOptions"
                   :props="subjectCascaderProps"
-                  :disabled="readonly"
                   filterable
                   clearable
                   class="full"
-                  placeholder="请选择会计科目"
-                  separator=" / "
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="摘要" min-width="190">
-              <template #default="{ row, $index }">
-                <el-input
-                  v-model="row.summary"
-                  :class="{ 'line-input-error': lineSummaryTouched[$index] && lineSummaryError(row) }"
-                  :maxlength="fieldLimits.summary"
+                  :class="{ 'line-input-error': lineTouched[index] && lineSubjectError(line) }"
                   :disabled="readonly"
-                  show-word-limit
-                  @blur="touchLineSummary($index)"
+                  placeholder="请选择会计科目"
+                  @change="touchLine(index)"
                 />
-                <div v-if="lineSummaryTouched[$index] && lineSummaryError(row)" class="line-field-error">{{ lineSummaryError(row) }}</div>
-              </template>
-            </el-table-column>
-            <el-table-column label="借方金额" width="145">
-              <template #default="{ row }">
-                <el-input-number v-model="row.debitAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" />
-              </template>
-            </el-table-column>
-            <el-table-column label="贷方金额" width="145">
-              <template #default="{ row }">
-                <el-input-number v-model="row.creditAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" />
-              </template>
-            </el-table-column>
-            <el-table-column label="币种" width="115">
-              <template #default="{ row }">
-                <el-select v-model="row.currencyCode" filterable class="full" :disabled="readonly" @change="onLineCurrencyChange(row)">
+                <div v-if="lineTouched[index] && lineSubjectError(line)" class="line-field-error">{{ lineSubjectError(line) }}</div>
+              </div>
+              <div class="voucher-entry-cell amount-cell">
+                <el-input-number v-model="line.debitAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" :class="{ 'line-input-error': lineTouched[index] && lineAmountError(line) }" @change="touchLine(index)" />
+                <div v-if="lineTouched[index] && lineAmountError(line)" class="line-field-error">{{ lineAmountError(line) }}</div>
+              </div>
+              <div class="voucher-entry-cell amount-cell">
+                <el-input-number v-model="line.creditAmount" :min="0" :precision="8" :controls="false" :disabled="readonly" class="full" :class="{ 'line-input-error': lineTouched[index] && lineAmountError(line) }" @change="touchLine(index)" />
+              </div>
+              <div class="voucher-entry-extra">
+                <el-select v-model="line.currencyCode" filterable :disabled="readonly" placeholder="币种" @change="onLineCurrencyChange(line)">
                   <el-option v-for="item in currencyOptions" :key="item.code" :label="item.code" :value="item.code" />
                 </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="汇率" width="145">
-              <template #default="{ row }">
-                <el-input-number v-model="row.exchangeRateToCny" :min="0.00000001" :precision="8" :controls="false" :disabled="readonly || row.currencyCode === 'CNY'" class="full" />
-              </template>
-            </el-table-column>
-            <el-table-column label="金额(人民币)" width="140" align="right">
-              <template #default="{ row }">
-                <AmountText :value="lineCnyAmount(row)" currency-code="CNY" currency-name="人民币" />
-              </template>
-            </el-table-column>
-            <el-table-column label="辅助核算" min-width="160">
-              <template #default="{ row }">
-                <el-input v-model="row.auxiliary" :disabled="readonly" />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="90">
-              <template #default="{ $index }">
-                <el-button v-if="canDeleteLine && form.lines.length > 2" size="small" type="danger" @click="form.lines.splice($index, 1)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+                <el-input-number v-model="line.exchangeRateToCny" :min="0.00000001" :precision="8" :controls="false" :disabled="readonly || line.currencyCode === 'CNY'" placeholder="汇率" />
+                <span class="voucher-entry-cny">人民币：<AmountText :value="lineCnyAmount(line)" currency-code="CNY" currency-name="人民币" /></span>
+                <el-input v-model="line.auxiliary" :disabled="readonly" placeholder="辅助核算" />
+                <el-button v-if="canDeleteLine && form.lines.length > 2" size="small" type="danger" @click="removeLine(index)">删除</el-button>
+              </div>
+            </template>
+          </div>
+          <div class="voucher-entry-total">
+            <span>合计</span>
+            <span><AmountText :value="totalDebitCny" currency-code="CNY" currency-name="人民币" /></span>
+            <span><AmountText :value="totalCreditCny" currency-code="CNY" currency-name="人民币" /></span>
+          </div>
+          <div class="voucher-entry-footer">
+            <label>项目</label>
+            <el-select v-model="form.projectCode" clearable filterable placeholder="请选择项目" :disabled="readonly" @change="onProjectChange">
+              <el-option v-for="item in projectOptions" :key="item.id" :label="item.name" :value="item.code" />
+            </el-select>
+            <label>客户</label>
+            <el-input v-model="form.customerName" :disabled="readonly" placeholder="手动输入客户" />
+            <label>部门</label>
+            <el-select v-model="form.departmentName" clearable filterable placeholder="请选择部门" :disabled="readonly">
+              <el-option v-for="item in departmentOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+            <label>业务员</label>
+            <el-input v-model="form.businessUser" :disabled="readonly" />
+            <label>记账</label>
+            <el-input v-model="form.bookkeeper" :disabled="readonly" />
+            <label>制单</label>
+            <el-input v-model="form.maker" :disabled="readonly" />
+          </div>
         </div>
 
         <div class="total-bar">
@@ -310,6 +312,7 @@ import { buildSubjectCascaderOptions, subjectCascaderProps, subjectNamePath } fr
 import { fieldLimits } from '@/utils/validators'
 import { fallbackExchangeRateToCny, formatMoney, roundBusinessMoney } from '@/utils/money'
 import { queryString } from '@/utils/routeQuery'
+import { flattenDictionaryOptions, type DictionaryOption } from '@/utils/dictionaries'
 
 /**
  * VoucherLineForm 类型定义，用于约束页面状态、接口入参或接口返回数据结构。
@@ -347,6 +350,21 @@ interface VoucherLineForm {
    * 字段 auxiliary：表示表单、筛选条件、接口数据或组件状态中的 auxiliary 值。
    */
   auxiliary: string
+}
+
+interface VoucherForm {
+  voucherDate: string
+  belongMonth: string
+  projectCode: string
+  projectName: string
+  customerName: string
+  departmentName: string
+  businessUser: string
+  bookkeeper: string
+  maker: string
+  summary: string
+  sourceBizNo: string
+  lines: VoucherLineForm[]
 }
 
 /**
@@ -397,6 +415,7 @@ const currencyOptions = ref<BasicDictionaryView[]>([])
  * 常量 projectOptions：保存项目字典下拉选项，用于凭证项目维度筛选和录入。
  */
 const projectOptions = ref<BasicDictionaryView[]>([])
+const departmentOptions = ref<DictionaryOption[]>([])
 /**
  * 常量 attachmentRef：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -479,7 +498,7 @@ const filters = reactive({
 /**
  * 常量 form：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
-const form = reactive({
+const form = reactive<VoucherForm>({
   /**
    * 字段 voucherDate：表示表单、筛选条件、接口数据或组件状态中的 voucherDate 值。
    */
@@ -496,6 +515,11 @@ const form = reactive({
    * 字段 projectName：表示项目名称快照，保存凭证创建或修改时的项目名称。
    */
   projectName: '',
+  customerName: '',
+  departmentName: '',
+  businessUser: '',
+  bookkeeper: '',
+  maker: '',
   /**
    * 字段 summary：表示表单、筛选条件、接口数据或组件状态中的 summary 值。
    */
@@ -507,13 +531,15 @@ const form = reactive({
   /**
    * 字段 lines：表示表单、筛选条件、接口数据或组件状态中的 lines 值。
    */
-  lines: [] as VoucherLineForm[]
+  lines: []
 })
 
 /**
  * 常量 lineSummaryTouched：记录每一行分录摘要是否已经 blur，避免未编辑时提前显示行内错误。
  */
 const lineSummaryTouched = ref<boolean[]>([])
+/** 记录分录是否已编辑或经过保存校验，用于展示科目和借贷金额行内错误。 */
+const lineTouched = ref<boolean[]>([])
 /**
  * 常量 voucherImportQueue：暂存本次选择的凭证导入文件，等待短延迟合并后一次性识别。
  */
@@ -527,33 +553,23 @@ let voucherImportTimer: ReturnType<typeof setTimeout> | undefined
  * 凭证主表字段校验规则。
  *
  * 实现步骤：
- * 1. 凭证日期、所属年月和摘要作为必填项做字段级提示；
- * 2. 来源单号和摘要按统一长度限制校验；
+ * 1. 凭证日期和所属年月作为必填项做字段级提示；
+ * 2. 来源单号按统一长度限制校验；
  * 3. 输入框 blur 后由 Element Plus 显示红框和字段下方错误文案。
  */
 const rules: FormRules = {
   voucherDate: [{ required: true, message: '请选择凭证日期', trigger: 'change' }],
   belongMonth: [{ required: true, message: '请选择所属年月', trigger: 'change' }],
-  projectCode: [{ required: true, message: '请选择项目', trigger: 'change' }],
-  summary: [
-    { required: true, message: '请输入摘要', trigger: 'blur' },
-    { max: fieldLimits.summary, message: `摘要不能超过${fieldLimits.summary}个字符`, trigger: 'blur' }
-  ],
   sourceBizNo: [{ max: fieldLimits.sourceBillNo, message: `来源单号不能超过${fieldLimits.sourceBillNo}个字符`, trigger: 'blur' }]
 }
-
-/**
- * 常量 subjectCascaderOptions：保存只展示科目名称的树型级联选项。
- */
-const subjectCascaderOptions = computed(() => buildSubjectCascaderOptions(subjects.value, enabledSubjects.value))
 /**
  * 常量 totalDebitCny：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
-const totalDebitCny = computed(() => roundBusinessMoney(form.lines.reduce((sum, line) => sum + toCny(line.debitAmount, line), 0)))
+const totalDebitCny = computed(() => roundBusinessMoney(effectiveVoucherLines().reduce((sum, line) => sum + toCny(line.debitAmount, line), 0)))
 /**
  * 常量 totalCreditCny：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
-const totalCreditCny = computed(() => roundBusinessMoney(form.lines.reduce((sum, line) => sum + toCny(line.creditAmount, line), 0)))
+const totalCreditCny = computed(() => roundBusinessMoney(effectiveVoucherLines().reduce((sum, line) => sum + toCny(line.creditAmount, line), 0)))
 /**
  * 常量 balanced：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -576,6 +592,8 @@ const canDeleteLine = computed(() => !readonly.value && auth.hasMenu('BTN_VOUCHE
 const canManageAttachment = computed(() => !readonly.value && auth.hasMenu('BTN_VOUCHER_ATTACHMENT'))
 /** 在线凭证预览标题，优先显示凭证号。 */
 const voucherImageTitle = computed(() => voucherImageDetail.value ? `${voucherImageDetail.value.voucherNo} 在线凭证` : '在线凭证')
+/** 按会计科目父子层级构建级联选项，父级仅展开、末级可选择。 */
+const subjectCascaderOptions = computed(() => buildSubjectCascaderOptions(subjects.value, enabledSubjects.value))
 
 /**
  * 执行 money 方法。
@@ -999,6 +1017,10 @@ async function loadProjects() {
   projectOptions.value = await api.enabledDictionaryChildren('PROJECT')
 }
 
+async function loadDepartments() {
+  departmentOptions.value = flattenDictionaryOptions(await api.enabledDictionaryTree('DEPARTMENT'))
+}
+
 /**
  * 根据当前项目编码同步项目名称快照。
  *
@@ -1020,10 +1042,19 @@ function onProjectChange() {
  * 3. 更新页面状态或返回处理结果。
  */
 function defaultLines() {
-  return [
-    { subjectId: undefined, summary: '', debitAmount: 0, creditAmount: 0, currencyCode: 'CNY', currencyName: '人民币', exchangeRateToCny: 1, auxiliary: '' },
-    { subjectId: undefined, summary: '', debitAmount: 0, creditAmount: 0, currencyCode: 'CNY', currencyName: '人民币', exchangeRateToCny: 1, auxiliary: '' }
-  ]
+  return Array.from({ length: 5 }, () => blankVoucherLine())
+}
+
+function blankVoucherLine(): VoucherLineForm {
+  return { subjectId: undefined, summary: '', debitAmount: 0, creditAmount: 0, currencyCode: 'CNY', currencyName: '人民币', exchangeRateToCny: 1, auxiliary: '' }
+}
+
+function withMinimumVoucherLines(lines: VoucherLineForm[]) {
+  const result = [...lines]
+  while (result.length < 5) {
+    result.push(blankVoucherLine())
+  }
+  return result
 }
 
 /**
@@ -1040,6 +1071,7 @@ async function openCreate() {
   readonly.value = false
   attachmentRef.value?.reset()
   lineSummaryTouched.value = []
+  lineTouched.value = []
   Object.assign(form, {
     /**
      * 字段 voucherDate：表示表单、筛选条件、接口数据或组件状态中的 voucherDate 值。
@@ -1057,6 +1089,11 @@ async function openCreate() {
      * 字段 projectName：表示项目名称快照，新增凭证时默认为空。
      */
     projectName: '',
+    customerName: '',
+    departmentName: auth.user?.department || '',
+    businessUser: currentUserName(),
+    bookkeeper: currentUserName(),
+    maker: currentUserName(),
     /**
      * 字段 summary：表示表单、筛选条件、接口数据或组件状态中的 summary 值。
      */
@@ -1071,7 +1108,12 @@ async function openCreate() {
     lines: defaultLines()
   })
   lineSummaryTouched.value = form.lines.map(() => false)
+  lineTouched.value = form.lines.map(() => false)
   dialogVisible.value = true
+}
+
+function currentUserName() {
+  return auth.user?.realName || auth.user?.username || ''
 }
 
 /**
@@ -1084,6 +1126,7 @@ async function openCreate() {
  */
 function fill(row: VoucherView) {
   lineSummaryTouched.value = []
+  lineTouched.value = []
   Object.assign(form, {
     /**
      * 字段 voucherDate：表示表单、筛选条件、接口数据或组件状态中的 voucherDate 值。
@@ -1105,6 +1148,11 @@ function fill(row: VoucherView) {
      * 字段 summary：表示表单、筛选条件、接口数据或组件状态中的 summary 值。
      */
     summary: row.summary,
+    customerName: row.customerName || '',
+    departmentName: row.departmentName || '',
+    businessUser: row.businessUser || '',
+    bookkeeper: row.bookkeeper || '',
+    maker: row.maker || row.createdBy || '',
     /**
      * 字段 sourceBizNo：表示表单、筛选条件、接口数据或组件状态中的 sourceBizNo 值。
      */
@@ -1112,7 +1160,7 @@ function fill(row: VoucherView) {
     /**
      * 字段 lines：表示表单、筛选条件、接口数据或组件状态中的 lines 值。
      */
-    lines: row.lines.map((line) => ({
+    lines: withMinimumVoucherLines(row.lines.map((line) => ({
       /**
        * 字段 subjectId：表示表单、筛选条件、接口数据或组件状态中的 subjectId 值。
        */
@@ -1145,9 +1193,10 @@ function fill(row: VoucherView) {
        * 字段 auxiliary：表示表单、筛选条件、接口数据或组件状态中的 auxiliary 值。
        */
       auxiliary: line.auxiliary || ''
-    }))
+    })))
   })
   lineSummaryTouched.value = form.lines.map(() => false)
+  lineTouched.value = form.lines.map(() => false)
 }
 
 /**
@@ -1461,16 +1510,36 @@ function drawVoucherLines(ctx: CanvasRenderingContext2D, voucher: VoucherView, c
   /** 可见分录行集合，超过凭证固定展示行数的内容不绘制到图片主表中。 */
   const rows = voucher.lines.slice(0, bodyRows)
   ctx.fillStyle = '#111827'
-  rows.forEach((line, index) => {
+  for (let index = 0; index < bodyRows; index++) {
+    const line = rows[index]
     /** 当前分录文字基线纵坐标，基于行号和固定行高计算。 */
     const y = tableTop + headerHeight + rowHeight * index + 24
+    if (!line) {
+      continue
+    }
     ctx.font = '18px SimSun, "Microsoft YaHei", sans-serif'
     ctx.textAlign = 'left'
     drawWrappedText(ctx, line.summary || voucher.summary || '', cols[0] + 8, y, cols[1] - cols[0] - 16, 22, 2)
     drawWrappedText(ctx, voucherSubjectText(line), cols[1] + 8, y, cols[2] - cols[1] - 16, 22, 2)
     drawAmountDigits(ctx, line.debitAmountCny, cols[2], y + 22, cols[3] - cols[2])
     drawAmountDigits(ctx, line.creditAmountCny, cols[3], y + 22, cols[4] - cols[3])
-  })
+  }
+  if (rows.length < bodyRows) {
+    drawEmptyVoucherLineSlash(ctx, cols, tableTop + headerHeight + rowHeight * rows.length, rowHeight * (bodyRows - rows.length))
+  }
+}
+
+function drawEmptyVoucherLineSlash(ctx: CanvasRenderingContext2D, cols: number[], blankTop: number, blankHeight: number) {
+  ctx.save()
+  ctx.strokeStyle = '#d94848'
+  ctx.lineWidth = 2
+  for (const index of [2, 3]) {
+    ctx.beginPath()
+    ctx.moveTo(cols[index] + 8, blankTop + blankHeight - 8)
+    ctx.lineTo(cols[index + 1] - 8, blankTop + 8)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 /**
@@ -1517,7 +1586,9 @@ function drawVoucherFooter(ctx: CanvasRenderingContext2D, voucher: VoucherView, 
   ctx.fillText('个  人', left + 868, totalBottom + 30)
   ctx.font = '16px SimSun, "Microsoft YaHei", sans-serif'
   drawWrappedText(ctx, voucher.projectName || voucher.projectCode || '', left + 146, totalBottom + 30, 330, 20, 1)
-  drawWrappedText(ctx, voucher.sourceBizNo || '', left + 146, totalBottom + 62, 330, 20, 1)
+  drawWrappedText(ctx, voucher.customerName || voucher.sourceBizNo || '', left + 146, totalBottom + 62, 330, 20, 1)
+  drawWrappedText(ctx, voucher.departmentName || '', left + 580, totalBottom + 30, 220, 20, 1)
+  drawWrappedText(ctx, voucher.businessUser || '', left + 580, totalBottom + 62, 220, 20, 1)
   drawWrappedText(ctx, voucher.summary || '', left + 8, footerBottom - 10, width - 16, 18, 1)
 }
 
@@ -1532,10 +1603,10 @@ function drawVoucherSignature(ctx: CanvasRenderingContext2D, voucher: VoucherVie
   ctx.fillStyle = '#111827'
   ctx.font = '20px SimSun, "Microsoft YaHei", sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText(`记账  ${voucher.postedBy || ''}`, left + 64, y)
+  ctx.fillText(`记账  ${voucher.bookkeeper || voucher.postedBy || ''}`, left + 64, y)
   ctx.fillText('审核', left + 278, y)
   ctx.fillText('出纳', left + 540, y)
-  ctx.fillText(`制单  ${voucher.createdBy || ''}`, left + width - 214, y)
+  ctx.fillText(`制单  ${voucher.maker || voucher.createdBy || ''}`, left + width - 214, y)
 }
 
 /**
@@ -1810,8 +1881,15 @@ async function openOperationLogs(row: VoucherView) {
  * 3. 更新页面状态或返回处理结果。
  */
 function addLine() {
-  form.lines.push({ subjectId: undefined, summary: form.summary, debitAmount: 0, creditAmount: 0, currencyCode: 'CNY', currencyName: '人民币', exchangeRateToCny: 1, auxiliary: '' })
+  form.lines.push(blankVoucherLine())
   lineSummaryTouched.value.push(false)
+  lineTouched.value.push(false)
+}
+
+function removeLine(index: number) {
+  form.lines.splice(index, 1)
+  lineSummaryTouched.value.splice(index, 1)
+  lineTouched.value.splice(index, 1)
 }
 
 /**
@@ -1912,8 +1990,9 @@ function applyVoucherImportResult(result: VoucherImportResult) {
     return
   }
   const replaceBlankLines = form.lines.every(isBlankLine)
-  form.lines = replaceBlankLines ? importedLines : [...form.lines, ...importedLines]
+  form.lines = withMinimumVoucherLines(replaceBlankLines ? importedLines : [...form.lines, ...importedLines])
   lineSummaryTouched.value = form.lines.map(() => false)
+  lineTouched.value = form.lines.map(() => false)
 }
 
 /**
@@ -1943,7 +2022,41 @@ function isBlankLine(line: VoucherLineForm) {
     && !line.summary
     && Number(line.debitAmount || 0) === 0
     && Number(line.creditAmount || 0) === 0
+    && (!line.currencyCode || line.currencyCode === 'CNY')
+    && Number(line.exchangeRateToCny || 1) === 1
     && (!line.auxiliary || line.auxiliary.length === 0)
+}
+
+function effectiveVoucherLines() {
+  return form.lines.filter((line) => !isBlankLine(line))
+}
+
+function lineHasAnyContent(line: VoucherLineForm) {
+  return !isBlankLine(line)
+}
+
+function incompleteLineReason(line: VoucherLineForm) {
+  if (!lineHasAnyContent(line)) {
+    return ''
+  }
+  if (!line.summary.trim()) {
+    return '请输入摘要'
+  }
+  if (!line.subjectId) {
+    return '请选择科目'
+  }
+  const debit = Number(line.debitAmount || 0)
+  const credit = Number(line.creditAmount || 0)
+  if ((debit <= 0 && credit <= 0) || (debit > 0 && credit > 0)) {
+    return '借方金额和贷方金额必须二选一填写'
+  }
+  if (!line.currencyCode) {
+    return '请选择币种'
+  }
+  if (Number(line.exchangeRateToCny || 0) <= 0) {
+    return '请输入有效汇率'
+  }
+  return ''
 }
 
 /**
@@ -1960,15 +2073,16 @@ async function save() {
   if (!valid) {
     return
   }
-  if (!balanced.value) {
-    ElMessage.warning('凭证借贷不平衡')
-    return
-  }
-  if (form.lines.some((line) => !line.subjectId || !line.summary)) {
-    ElMessage.warning('请完善分录科目和摘要')
+  const effectiveLines = effectiveVoucherLines()
+  if (effectiveLines.length === 0) {
+    ElMessage.warning('凭证至少需要一条有效分录')
     return
   }
   if (!validateVoucherForm()) {
+    return
+  }
+  if (!balanced.value) {
+    ElMessage.warning('凭证借贷不平衡')
     return
   }
   /**
@@ -1991,10 +2105,15 @@ async function save() {
      * 字段 projectName：表示项目名称快照，用于保存凭证项目维度展示值。
      */
     projectName: form.projectName || undefined,
+    customerName: form.customerName || undefined,
+    departmentName: form.departmentName || undefined,
+    businessUser: form.businessUser || undefined,
+    bookkeeper: form.bookkeeper || undefined,
+    maker: form.maker || undefined,
     /**
      * 字段 summary：表示表单、筛选条件、接口数据或组件状态中的 summary 值。
      */
-    summary: form.summary,
+    summary: effectiveLines.map((line) => line.summary.trim()).filter(Boolean).slice(0, 3).join('；'),
     /**
      * 字段 sourceBizNo：表示表单、筛选条件、接口数据或组件状态中的 sourceBizNo 值。
      */
@@ -2002,7 +2121,7 @@ async function save() {
     /**
      * 字段 lines：表示表单、筛选条件、接口数据或组件状态中的 lines 值。
      */
-    lines: form.lines.map((line) => ({
+    lines: effectiveLines.map((line) => ({
       ...line,
       /**
        * 字段 currencyName：表示表单、筛选条件、接口数据或组件状态中的 currencyName 值。
@@ -2035,6 +2154,13 @@ async function save() {
  * 4. 任一字段超限时阻止保存并提示具体字段。
  */
 function validateVoucherForm() {
+  const incompleteIndex = form.lines.findIndex((line) => incompleteLineReason(line))
+  if (incompleteIndex >= 0) {
+    touchLineSummary(incompleteIndex)
+    touchLine(incompleteIndex)
+    ElMessage.warning(`第${incompleteIndex + 1}行${incompleteLineReason(form.lines[incompleteIndex])}`)
+    return false
+  }
   /**
    * 常量 invalidLineIndex：保存当前模块的页面状态、配置项、接口实例或计算结果。
    */
@@ -2051,6 +2177,26 @@ function validateVoucherForm() {
  */
 function touchLineSummary(index: number) {
   lineSummaryTouched.value[index] = true
+}
+
+/** 标记指定分录已编辑或已校验。 */
+function touchLine(index: number) {
+  lineTouched.value[index] = true
+}
+
+/** 非空分录必须选择末级会计科目。 */
+function lineSubjectError(line: VoucherLineForm) {
+  return lineHasAnyContent(line) && !line.subjectId ? '请选择科目' : ''
+}
+
+/** 非空分录借贷金额必须且只能填写一方。 */
+function lineAmountError(line: VoucherLineForm) {
+  if (!lineHasAnyContent(line)) {
+    return ''
+  }
+  const debit = Number(line.debitAmount || 0)
+  const credit = Number(line.creditAmount || 0)
+  return (debit <= 0 && credit <= 0) || (debit > 0 && credit > 0) ? '借贷金额二选一' : ''
 }
 
 /**
@@ -2140,7 +2286,7 @@ onMounted(async () => {
  * 3. 页面激活或打开凭证弹窗时调用，保证科目和项目最新。
  */
 async function refreshDictionaryOptions() {
-  await Promise.all([loadSubjects(), loadCurrencies(), loadProjects()])
+  await Promise.all([loadSubjects(), loadCurrencies(), loadProjects(), loadDepartments()])
 }
 
 onActivated(() => {
@@ -2242,6 +2388,138 @@ async function maybeOpenRouteVoucherImage() {
 
 .voucher-lines-table :deep(.el-table) {
   width: 100% !important;
+}
+
+.voucher-entry-paper {
+  padding: 18px 22px 16px;
+  border: 2px solid rgba(31, 42, 122, 0.72);
+  background: color-mix(in srgb, var(--surface-color) 88%, transparent);
+  color: var(--text-primary);
+}
+
+.voucher-entry-title {
+  width: max-content;
+  margin: 0 auto 14px;
+  padding: 0 22px 6px;
+  border-bottom: 2px solid #0f766e;
+  color: #0f766e;
+  font-family: SimSun, "Microsoft YaHei", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.voucher-entry-meta,
+.voucher-entry-total {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.voucher-entry-meta span:nth-child(2) {
+  text-align: center;
+}
+
+.voucher-entry-meta span:nth-child(3),
+.voucher-entry-total span:nth-child(3) {
+  text-align: right;
+}
+
+.voucher-entry-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.65fr) minmax(128px, 0.68fr) minmax(128px, 0.68fr);
+  border-top: 1px solid rgba(31, 42, 122, 0.85);
+  border-left: 1px solid rgba(31, 42, 122, 0.85);
+}
+
+.voucher-entry-head,
+.voucher-entry-cell {
+  min-width: 0;
+  border-right: 1px solid rgba(31, 42, 122, 0.85);
+  border-bottom: 1px solid rgba(31, 42, 122, 0.85);
+}
+
+.voucher-entry-head {
+  padding: 10px 12px;
+  color: #0f766e;
+  font-family: SimSun, "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.voucher-entry-cell {
+  min-height: 66px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--surface-color) 78%, transparent);
+}
+
+.voucher-entry-cell :deep(.el-input__wrapper),
+.voucher-entry-cell :deep(.el-textarea__inner),
+.voucher-entry-footer :deep(.el-input__wrapper),
+.voucher-entry-footer :deep(.el-select__wrapper),
+.voucher-entry-extra :deep(.el-input__wrapper),
+.voucher-entry-extra :deep(.el-select__wrapper) {
+  background: color-mix(in srgb, var(--surface-color) 58%, transparent);
+}
+
+.amount-cell :deep(.el-input__inner) {
+  text-align: right;
+}
+
+.voucher-entry-extra {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 88px 128px minmax(150px, 0.7fr) minmax(160px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-right: 1px solid rgba(31, 42, 122, 0.85);
+  border-bottom: 1px solid rgba(31, 42, 122, 0.85);
+  background: color-mix(in srgb, var(--surface-color) 70%, transparent);
+}
+
+.voucher-entry-cny {
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voucher-entry-total {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 42, 122, 0.85);
+  border-top: 0;
+  font-weight: 700;
+}
+
+.voucher-entry-footer {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto minmax(180px, 1fr) auto minmax(180px, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  padding: 14px 12px 0;
+}
+
+.voucher-entry-footer label {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .voucher-entry-grid,
+  .voucher-entry-total,
+  .voucher-entry-meta,
+  .voucher-entry-footer,
+  .voucher-entry-extra {
+    grid-template-columns: 1fr;
+  }
 }
 
 :global(.voucher-dialog .el-dialog__body) {

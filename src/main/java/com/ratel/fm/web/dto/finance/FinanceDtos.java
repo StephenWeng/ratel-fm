@@ -184,7 +184,6 @@ public final class FinanceDtos {
              */
             String belongMonth,
             @Schema(description = "项目字典编码，来自基础信息项目字典。")
-            @NotBlank(message = "项目不能为空")
             @Size(max = 80, message = "项目编码长度不能超过80个字符")
             /**
              * 记录组件 projectCode：表示接口入参或出参中的 projectCode 字段。
@@ -196,8 +195,22 @@ public final class FinanceDtos {
              * 记录组件 projectName：表示接口入参或出参中的 projectName 字段。
              */
             String projectName,
-            @Schema(description = "凭证摘要。")
-            @NotBlank(message = "凭证摘要不能为空")
+            @Schema(description = "客户名称。")
+            @Size(max = 160, message = "客户名称长度不能超过160个字符")
+            String customerName,
+            @Schema(description = "部门名称。")
+            @Size(max = 120, message = "部门名称长度不能超过120个字符")
+            String departmentName,
+            @Schema(description = "业务员名称。")
+            @Size(max = 120, message = "业务员名称长度不能超过120个字符")
+            String businessUser,
+            @Schema(description = "记账人名称。")
+            @Size(max = 120, message = "记账人名称长度不能超过120个字符")
+            String bookkeeper,
+            @Schema(description = "制单人名称。")
+            @Size(max = 120, message = "制单人名称长度不能超过120个字符")
+            String maker,
+            @Schema(description = "凭证摘要，由分录摘要汇总形成，手工录入时可为空。")
             @Size(max = 200, message = "凭证摘要长度不能超过200个字符")
             /**
              * 记录组件 summary：表示接口入参或出参中的 summary 字段。
@@ -347,6 +360,26 @@ public final class FinanceDtos {
              * 记录组件 projectName：表示接口入参或出参中的 projectName 字段。
              */
             String projectName,
+            /**
+             * 记录组件 customerName：表示客户名称快照。
+             */
+            String customerName,
+            /**
+             * 记录组件 departmentName：表示部门名称快照。
+             */
+            String departmentName,
+            /**
+             * 记录组件 businessUser：表示业务员名称。
+             */
+            String businessUser,
+            /**
+             * 记录组件 bookkeeper：表示记账人名称。
+             */
+            String bookkeeper,
+            /**
+             * 记录组件 maker：表示制单人名称。
+             */
+            String maker,
             /**
              * 记录组件 summary：表示接口入参或出参中的 summary 字段。
              */

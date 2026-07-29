@@ -22,6 +22,9 @@ public class AssistantModelRouter {
 
     public ModelRoute route(String question, String mode) {
         String text = value(question).trim();
+        if ("reasoning".equalsIgnoreCase(value(mode)) || "think".equalsIgnoreCase(value(mode))) {
+            return modelRoute("深度思考", AiModelUseCase.REASONING);
+        }
         if (isCommandQuestion(text, mode)) {
             return modelRoute("语音/操作指令", AiModelUseCase.COMMAND);
         }

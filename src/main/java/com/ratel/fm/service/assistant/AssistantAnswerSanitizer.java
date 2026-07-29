@@ -39,6 +39,7 @@ public class AssistantAnswerSanitizer {
         return text
                 .replaceAll("(?m)^\\s*---\\s*$", "")
                 .replaceAll("(?m)^\\s*(现在重新读一下用户的问题|用户问的是|我需要|让我|先看).*$", "")
+                .replaceAll("(?m)^(\\s*\\d{1,2})[.．、)]\\s*", "$1、")
                 .replaceAll("\\n{3,}", "\n\n")
                 .trim();
     }

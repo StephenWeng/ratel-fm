@@ -2,17 +2,13 @@ package com.ratel.fm.common.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 
 /**
  * 客户端 IP 解析工具。
  *
- * <p>优先读取代理转发头；直接本机访问时如果只能拿到回环地址，则回退到本机局域网 IPv4，避免 PC 终端标识长期记录为 127.0.0.1。</p>
+ * <p>优先读取代理转发头；代理头无有效地址时使用连接的远端地址。服务端不能把自身局域网地址冒充客户端地址。</p>
  *
  * <p>开发组织：ratel；开发人员：WenZhang；联系方式：18782945613。</p>
  *
@@ -53,10 +49,10 @@ public final class ClientIpUtils {
             // 变量说明：candidate 保存当前步骤计算、查询或转换得到的中间结果。
             String candidate = firstValidIp(request.getHeader(headerName));
             if (candidate != null) {
-                return normalizeLoopback(candidate);
+                return candidate;
             }
         }
-        return normalizeLoopback(request.getRemoteAddr());
+        return request.getRemoteAddr();
     }
 
     /**
@@ -94,56 +90,4 @@ public final class ClientIpUtils {
         return null;
     }
 
-    /**
-     * 回环地址回退为本机局域网 IPv4。
-     */
-    private static String normalizeLoopback(String ip) {
-        if (!isLoopback(ip)) {
-            return ip;
-        }
-        // 变量说明：localAddress 保存当前步骤计算、查询或转换得到的中间结果。
-        String localAddress = firstLocalIpv4();
-        return localAddress == null ? ip : localAddress;
-    }
-
-    /**
-     * 判断是否是本机回环地址。
-     */
-    private static boolean isLoopback(String ip) {
-        return ip == null
-                || ip.isBlank()
-                || "127.0.0.1".equals(ip)
-                || "0:0:0:0:0:0:0:1".equals(ip)
-                || "::1".equals(ip)
-                || "localhost".equalsIgnoreCase(ip);
-    }
-
-    /**
-     * 获取本机第一个可用局域网 IPv4。
-     */
-    private static String firstLocalIpv4() {
-        try {
-            // 变量说明：interfaces 保存当前步骤计算、查询或转换得到的中间结果。
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                // 变量说明：networkInterface 保存当前步骤计算、查询或转换得到的中间结果。
-                NetworkInterface networkInterface = interfaces.nextElement();
-                if (!networkInterface.isUp() || networkInterface.isLoopback() || networkInterface.isVirtual()) {
-                    continue;
-                }
-                // 变量说明：addresses 保存当前步骤计算、查询或转换得到的中间结果。
-                Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    // 变量说明：address 保存当前步骤计算、查询或转换得到的中间结果。
-                    InetAddress address = addresses.nextElement();
-                    if (address instanceof Inet4Address && !address.isLoopbackAddress()) {
-                        return address.getHostAddress();
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-            return null;
-        }
-        return null;
-    }
 }

@@ -17,6 +17,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -30,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -303,9 +305,7 @@ public class OllamaClient {
         /**
          * 变量 messages：保存发送给 Ollama 的 system 和 user 消息集合。
          */
-        JSONArray messages = new JSONArray();
-        messages.add(message("system", systemPrompt));
-        messages.add(message("user", userPrompt));
+        JSONArray messages = chatMessages(systemPrompt, userPrompt);
 
         /**
          * 变量 payload：保存 Ollama /api/chat 请求体。
@@ -397,9 +397,7 @@ public class OllamaClient {
         if (selectedModel.isBlank()) {
             return "";
         }
-        JSONArray messages = new JSONArray();
-        messages.add(message("system", systemPrompt));
-        messages.add(message("user", userPrompt));
+        JSONArray messages = chatMessages(systemPrompt, userPrompt);
 
         JSONObject payload = new JSONObject();
         payload.put("model", selectedModel);
@@ -449,6 +447,22 @@ public class OllamaClient {
         message.put("role", role);
         message.put("content", truncate(content, maxPromptChars()));
         return message;
+    }
+
+    /**
+     * 按上下文窗口为 system 与 user 消息分配统一字符预算。
+     * 中文字符通常接近一个 token，因此必须为模型输出和消息封装预留空间，不能对两条消息分别套用最大值。
+     */
+    private JSONArray chatMessages(String systemPrompt, String userPrompt) {
+        int tokenBudget = Math.max(1800, contextWindowTokens() - maxOutputTokens() - 384);
+        int totalCharBudget = Math.min(maxPromptChars(), tokenBudget);
+        int systemBudget = Math.min(Math.max(400, totalCharBudget / 4), 900);
+        String system = truncate(systemPrompt, systemBudget);
+        int userBudget = Math.max(1200, totalCharBudget - system.length());
+        JSONArray messages = new JSONArray();
+        messages.add(message("system", system));
+        messages.add(message("user", truncate(userPrompt, userBudget)));
+        return messages;
     }
 
     /**
@@ -542,8 +556,13 @@ public class OllamaClient {
         } catch (Exception ex) {
             recordFailure();
             log.warn("Ollama request failed: baseUrl={}, path={}, reason={}", baseUrl(), path, ex.getMessage(), ex);
+            if (isTimeout(ex)) {
+                throw new BusinessException(HttpStatus.GATEWAY_TIMEOUT, ResponseCode.LOAD_CLIENT_ERROR,
+                        "Ollama 模型已连接，但推理超过 " + timeoutSeconds()
+                                + " 秒。请降低并发或上下文长度、释放 CPU/内存资源，或适当增大 FM_AI_OLLAMA_TIMEOUT_SECONDS 后重试。");
+            }
             throw new BusinessException(HttpStatus.BAD_GATEWAY, ResponseCode.LOAD_CLIENT_ERROR,
-                    "Ollama 模型服务未启动或响应超时，请检查配置地址、监听地址和防火墙。");
+                    "无法连接 Ollama 模型服务，请检查配置地址、监听地址、防火墙和服务进程。");
         } finally {
             if (acquired) {
                 requestSemaphore.release();
@@ -618,8 +637,13 @@ public class OllamaClient {
             throw ex;
         } catch (Exception ex) {
             recordFailure();
+            if (isTimeout(ex)) {
+                throw new BusinessException(HttpStatus.GATEWAY_TIMEOUT, ResponseCode.LOAD_CLIENT_ERROR,
+                        "Ollama 模型已连接，但流式推理超过 " + timeoutSeconds()
+                                + " 秒。请降低并发或上下文长度、释放 CPU/内存资源，或适当增大 FM_AI_OLLAMA_TIMEOUT_SECONDS 后重试。");
+            }
             throw new BusinessException(HttpStatus.BAD_GATEWAY, ResponseCode.LOAD_CLIENT_ERROR,
-                    "Ollama 模型服务未启动或响应超时，请检查配置地址、监听地址和防火墙。");
+                    "无法连接 Ollama 模型服务，请检查配置地址、监听地址、防火墙和服务进程。");
         } finally {
             CompletableFuture<HttpResponse<InputStream>> future = responseFutureRef.get();
             if (future != null && !future.isDone()) {
@@ -630,6 +654,18 @@ public class OllamaClient {
                 requestSemaphore.release();
             }
         }
+    }
+
+    /** 判断异常链是否由 HTTP 或异步等待超时引起。 */
+    private boolean isTimeout(Throwable error) {
+        Throwable cursor = error;
+        while (cursor != null) {
+            if (cursor instanceof HttpTimeoutException || cursor instanceof TimeoutException) {
+                return true;
+            }
+            cursor = cursor.getCause();
+        }
+        return false;
     }
 
     /**

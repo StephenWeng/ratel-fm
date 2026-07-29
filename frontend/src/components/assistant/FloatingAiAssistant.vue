@@ -79,7 +79,16 @@
           placeholder="输入问题"
           @keyup.enter.exact="ask"
         />
-        <el-button v-if="!loading" type="primary" :icon="Promotion" @click="ask">发送</el-button>
+        <div v-if="!loading" class="ai-footer-actions">
+          <el-select
+            v-model="intentMode"
+            class="intent-mode"
+            placeholder="选择动作"
+          >
+            <el-option v-for="item in intentOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <el-button type="primary" :icon="Promotion" @click="ask">发送</el-button>
+        </div>
       </footer>
     </section>
   </transition>
@@ -91,9 +100,12 @@ import { ElMessage } from 'element-plus'
 import { ArrowDown, Close, CopyDocument, Promotion } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api/fm'
+import { saveBlob } from '@/api/http'
 import SystemLogo from '@/components/brand/SystemLogo.vue'
-import type { AiAssistantResponse, AiConversationMessage } from '@/types/api'
+import type { AiAssistantContext, AiAssistantResponse, AiConversationMessage } from '@/types/api'
 import { canEnterAnswer, enterAnswer } from '@/utils/aiNavigation'
+import { executeVoiceCommand } from '@/utils/voiceCommand'
+import { useAuthStore } from '@/stores/auth'
 
 /**
  * AssistantMessage 类型定义，用于约束页面状态、接口入参或接口返回数据结构。
@@ -125,6 +137,7 @@ const visible = ref(false)
  * 常量 router：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
 const router = useRouter()
+const auth = useAuthStore()
 /**
  * 常量 question：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -151,6 +164,11 @@ const conversationSummary = ref('')
 const bodyRef = ref<HTMLElement>()
 const showJumpToLatest = ref(false)
 const conversationPinnedToBottom = ref(true)
+const intentMode = ref<'think' | 'writing'>('think')
+const intentOptions = [
+  { label: '思考', value: 'think' },
+  { label: 'AI写作', value: 'writing' }
+]
 /**
  * 常量 fabPosition：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -198,6 +216,7 @@ let dragState:
  * 变量 streamController：保存当前助手流式请求取消控制器。
  */
 let streamController: AbortController | undefined
+let thinkingTimer: ReturnType<typeof setInterval> | undefined
 /**
  * 常量 FAB_SIZE：保存当前模块的页面状态、配置项、接口实例或计算结果。
  */
@@ -447,8 +466,31 @@ async function ask() {
     content: text
   })
   await scrollToBottom()
+  if (intentMode.value === 'think' && shouldTryAssistantCommand(text)) {
+    loading.value = true
+    try {
+      await auth.ensureSessionReady()
+      const commandResult = await executeVoiceCommand({ router, auth }, text)
+      if (commandResult.handled || commandResult.type !== 'info') {
+        appendCommandResult(text, commandResult.message, commandResult.type)
+        await scrollToBottom()
+        return
+      }
+    } catch {
+      appendCommandResult(text, '系统操作执行失败，请检查当前登录状态和页面权限。', 'error')
+      await scrollToBottom()
+      return
+    } finally {
+      loading.value = false
+    }
+  }
   loading.value = true
+  const thinkingMessage = intentMode.value === 'think' ? startThinkingProcessMessage(text) : undefined
   try {
+    if (intentMode.value === 'writing') {
+      await generateWritingFile(text, context)
+      return
+    }
     let streamedText = ''
     let finalResponse: AiAssistantResponse | undefined
     let assistantMessage: AssistantMessage | undefined
@@ -457,7 +499,7 @@ async function ask() {
     streamController?.abort()
     streamController = new AbortController()
     try {
-      await api.streamAssistant(text, 'local', context, {
+      await api.streamAssistant(text, 'reasoning', context, {
         signal: streamController.signal,
         onMeta: (response) => {
           pendingResponse = normalizeResponse(response, streamedText)
@@ -473,6 +515,7 @@ async function ask() {
             return
           }
           assistantMessage = ensureAssistantMessage(assistantMessage, pendingResponse)
+          finishThinkingProcessMessage(thinkingMessage)
           assistantMessage.content = displayText
           assistantMessage.response = normalizeResponse(assistantMessage.response || pendingResponse || emptyAssistantResponse(text, 'local'), displayText)
           if (conversationPinnedToBottom.value) {
@@ -485,6 +528,7 @@ async function ask() {
           finalResponse = normalizeResponse(response, streamedText || response.answer || '')
           if (finalResponse.answer.trim()) {
             assistantMessage = ensureAssistantMessage(assistantMessage, pendingResponse)
+            finishThinkingProcessMessage(thinkingMessage)
             assistantMessage.content = finalResponse.answer
             assistantMessage.response = finalResponse
             lastResponse.value = finalResponse
@@ -509,10 +553,11 @@ async function ask() {
           }
         }
       } else if (!streamedText.trim()) {
-        const response = await api.askAssistant(text, 'local', context)
+        const response = await api.askAssistant(text, 'reasoning', context)
         finalResponse = normalizeResponse(response)
         if (finalResponse.answer.trim()) {
           assistantMessage = ensureAssistantMessage(assistantMessage, finalResponse)
+          finishThinkingProcessMessage(thinkingMessage)
           assistantMessage.content = finalResponse.answer
           assistantMessage.response = finalResponse
           lastResponse.value = finalResponse
@@ -538,9 +583,94 @@ async function ask() {
   } catch {
     ElMessage.error('ratel助手请求失败')
   } finally {
+    finishThinkingProcessMessage(thinkingMessage)
     loading.value = false
     streamController = undefined
   }
+}
+
+function shouldTryAssistantCommand(text: string) {
+  const normalized = text.trim()
+  if (!normalized || /[?？]$/.test(normalized)) {
+    return false
+  }
+  return /^(请|帮我|麻烦)?(打开|进入|切换到|跳转到|跳到|转到|去到|去|查看|定位到|看一下|看下|看哈|看一哈)/.test(normalized)
+    || /^(新增|新建|添加|创建|查询|搜索|检索|筛选|重置|清空|导出|下载|取消|关闭|编辑|修改|详情|查看明细|输入|填入|录入|写入|确认)/.test(normalized)
+    || /(填成|填为|填写为|设置为|设为|改成|改为|弄成|弄为|输入|录入|写入|确认保存|确认提交|确认删除)/.test(normalized)
+}
+
+function appendCommandResult(text: string, message: string, type: 'success' | 'warning' | 'info' | 'error') {
+  const response = emptyAssistantResponse(text, 'command')
+  const prefix = type === 'success' ? '已执行' : type === 'warning' ? '需要确认' : type === 'error' ? '执行失败' : '已处理'
+  response.answer = `${prefix}：${message}`
+  response.suggestions = type === 'success'
+    ? ['继续操作当前页面', '输入业务问题进行分析']
+    : ['换一种更明确的操作说法', '检查当前页面和权限']
+  messages.value.push({
+    id: ++messageId,
+    role: 'assistant',
+    content: response.answer,
+    response
+  })
+  lastResponse.value = response
+}
+
+function startThinkingProcessMessage(text: string) {
+  const steps = [
+    '正在理解问题和业务意图',
+    '正在读取当前账套业务上下文',
+    '正在核对金额、日期和风险口径',
+    '正在组织结论和关键依据'
+  ]
+  const message: AssistantMessage = {
+    id: ++messageId,
+    role: 'assistant',
+    content: `思考过程：\n1、${steps[0]}`,
+    response: emptyAssistantResponse(text, 'local')
+  }
+  messages.value.push(message)
+  let index = 0
+  thinkingTimer = setInterval(() => {
+    index = Math.min(index + 1, steps.length - 1)
+    message.content = `思考过程：\n${steps.slice(0, index + 1).map((step, stepIndex) => `${stepIndex + 1}、${step}`).join('\n')}`
+    if (conversationPinnedToBottom.value) {
+      void scrollToBottom()
+    }
+  }, 900)
+  void scrollToBottom()
+  return message
+}
+
+function finishThinkingProcessMessage(message?: AssistantMessage) {
+  if (thinkingTimer) {
+    clearInterval(thinkingTimer)
+    thinkingTimer = undefined
+  }
+  if (!message) {
+    return
+  }
+  const index = messages.value.findIndex((item) => item.id === message.id)
+  if (index >= 0) {
+    messages.value.splice(index, 1)
+  }
+}
+
+async function generateWritingFile(text: string, context: AiAssistantContext) {
+  const { blob, filename } = await api.generateAiWritingFile(text, context)
+  const downloadName = filename || 'AI写作文件'
+  saveBlob(blob, downloadName)
+  const response = emptyAssistantResponse(text, 'local')
+  response.answer = `结论：已根据本次 AI写作 意图生成文件，并开始下载。\n\n关键依据：\n1、用户手动选择了 AI写作。\n2、系统根据问题判断文件类型和业务对象。\n3、文件名：${downloadName}`
+  response.suggestions = ['继续调整文件口径', '改成其他文件格式', '补充统计维度后重新生成']
+  messages.value.push({
+    id: ++messageId,
+    role: 'assistant',
+    content: response.answer,
+    response
+  })
+  lastResponse.value = response
+  trimConversationMessages(response.recentRawRounds)
+  await scrollToBottom()
 }
 
 /**
@@ -1020,12 +1150,28 @@ async function enterResponse(response: AiAssistantResponse) {
 
 .ai-panel-footer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 94px;
+  align-items: stretch;
+  gap: 8px;
   padding: 12px;
   border-top: 1px solid var(--border-color);
   background: var(--surface-color);
+}
+
+.ai-footer-actions {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+
+.intent-mode {
+  width: 94px;
+}
+
+.ai-footer-actions .el-button {
+  width: 94px;
+  margin-left: 0;
 }
 
 .ai-panel-footer.loading {
@@ -1063,7 +1209,16 @@ async function enterResponse(response: AiAssistantResponse) {
     grid-template-columns: 1fr;
   }
 
-  .ai-panel-footer .el-button {
+  .ai-footer-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
+    grid-template-rows: none;
+  }
+
+  .intent-mode {
+    width: 100%;
+  }
+
+  .ai-footer-actions .el-button {
     width: 100%;
   }
 }

@@ -88,6 +88,20 @@ Use Git LFS or an external artifact repository before uploading large files.
 
 ## 8. Recent Changes
 
+### 2026-07-25: Online-Voucher-Style Voucher Entry
+
+- Changed voucher create/edit to an online-voucher-style WYSIWYG entry surface with five default lines, while keeping `Add Line` and voucher import.
+- Moved summary to line level. Blank lines are ignored before save; lines with content must complete summary, subject, debit/credit amount, currency, and exchange-rate validation.
+- Added customer, department, business user, bookkeeper, and maker snapshots to the voucher header. Summary search now matches both voucher-header summary and voucher-line summaries.
+- The online voucher image draws slashes across debit and credit amount areas for empty rows to mark them invalid.
+
+### 2026-07-25: ratel Assistant AI Writing File Generation
+
+- Added the manual `思考` / `AI写作` intent selector in the ratel assistant send area.
+- Added `/api/ai/writing/generate` for downloadable xlsx, docx, pdf, and pptx generation.
+- Added `AiWritingService`, using Apache POI for Office files and PDFBox for PDF files.
+- Purchase-list xlsx output reuses the existing purchase export service. Daily purchase statistics aggregate current-company purchase orders, dates, and line quantities deterministically.
+
 ### 2026-07-25: Vue Gold Theme
 
 - Added the `vue-gold` theme configuration, displayed as `Vue 金` in the theme selector.
@@ -189,3 +203,35 @@ Use Git LFS or an external artifact repository before uploading large files.
 - ZIP inspection confirmed:
   - Ollama package contains `bin/linux/start.sh`, `bin/linux/stop.sh`, `bin/linux/status.sh`, `runtime/linux/ollama/ollama`.
   - Qdrant package contains `bin/linux/start.sh`, `bin/linux/stop.sh`, `bin/linux/status.sh`, `runtime/linux/qdrant/qdrant`.
+
+## 2026-07-25 Voucher UX, OCR diagnostics, and 20-user regression
+
+- Changed voucher subject entry to hierarchical cascader selection, tightened voucher columns, added per-line subject/debit-credit validation, and rendered one slash per blank debit/credit area in online vouchers.
+- Distinguished unavailable OCR capability from an available model failing because of timeout or constrained CPU, memory, or disk resources.
+- Removed connection-pool starvation by moving database audit persistence to a bounded background executor while preserving synchronous file audit.
+- Prevented Qdrant/Ollama incremental-index failures from rolling back core business writes; full manual index rebuild still reports failures.
+- Ran three rounds with 20 concurrent users and retained 180-day data. Final core regression completed 780 requests with no failures. Deep AI testing found 30/30 search and 15/15 Agent passes, but only 5/30 assistant answers passed content-quality checks.
+
+## 2026-07-25 ratel Assistant Deep Thinking and AI Writing Business Report Regression
+
+- Changed ratel assistant intent selection from flat buttons to a dropdown, with `思考` as the default and room for more future intents.
+- Routed the `思考` intent through `reasoning` mode so `AssistantModelRouter` selects the reasoning model use case instead of normal QA for complex business and finance questions.
+- Added staged thinking progress while the assistant is working; the temporary progress message is removed when the final answer arrives, and final answers still show only conclusions and key evidence.
+- Changed AI writing business analysis reports to read structured metrics from `BusinessMetricsService`, covering purchase amount, remaining AR/AP, stocked material count, negative-stock count, risks, and suggestions instead of generating a generic placeholder document.
+- Added `AiWritingServiceTest` and `BusinessAgentServiceTest` for report file content, permission boundaries, Business Analysis Agent metrics, risks, and self-checks.
+- This round ran targeted tests and the frontend build only, not full packaging, because the change is limited to assistant, AI writing, and Agent regression logic and does not affect deployment scripts, runtimes, or assembly descriptors.
+- Verification: `npm run build` passed; `mvn "-Dmaven.compiler.useIncrementalCompilation=false" "-Dtest=AiWritingServiceTest,BusinessAgentServiceTest" test` passed with 3 successful tests.
+
+## 2026-07-27 Three-Round Load and AI Regression Completion
+
+- Added `TEST-PROGRESS.md` as the restart checkpoint, including fixed commands, retained database/report locations, per-stage status, known failures, and the next resumable action.
+- Fixed the local build mismatch where the shell `java` was JDK 24 but `JAVA_HOME` still pointed to JDK 8. Added workspace JDK 24 settings and a Surefire Mockito agent because JDK 24 no longer reliably permits inline mock-maker self-attachment.
+- Enhanced `tools/perf-ai-regression.mjs` with per-case `progress.json` checkpoints, bounded empty-index retries, actual round/user/day report labels, dynamic leaf accounting-subject selection, and balanced draft-voucher seeding.
+- Completed the final immutable-JAR core regression with 20 users, 3 rounds, 180 days, 540 purchase/inventory/AR-AP chains, and 180 balanced draft vouchers: 1,121 requests, zero HTTP failures, zero issues.
+- AI round 1 ran 20 search cases, 20 assistant cases, 10 professional Agent cases, and 4 writing files. It found six quality/data-coverage issues. Search was 19/20 and assistant/Agent was 25/30 before fixes.
+- Added deterministic accounting safeguards for voucher entries, project gross margin, month-end trial balance/closing, invoice/tax checks, and professional cash-flow gaps. The assistant now states missing evidence instead of substituting AR/AP facts or inventing account codes and conclusions.
+- Added the missing draft-voucher data flow so trial-balance, unposted, cross-period, accrual, and closing terminology is searchable through Qdrant. The focused voucher flow and closing search probes passed with zero failures.
+- AI rounds 2 and 3 completed without HTTP or high-severity failures. They exposed one and two stochastic content issues respectively; after moving deterministic safeguards ahead of exact knowledge hits, final cash-flow and invoice probes both passed 17/17 requests with no issues.
+- Local notebook baseline: Qdrant search P95 was below 200 ms in the full AI round; `qwen2.5:7b` assistant average was about 29 seconds and the observed maximum was about 91 seconds. `deepseek-r1:8b` remains unsuitable for this machine's default reasoning route because it exceeded 180 seconds.
+- Final verification before packaging: backend tests 11/11 passed and the frontend production build passed. Optional Ollama/Qdrant assemblies are intentionally not rebuilt because runtime/model contents did not change.
+- A discarded environment run produced 60 failures because `spring-boot:run` was serving mutable `target/classes` while packaging and the VS Code compiler replaced that directory. The same workload passed from the packaged immutable JAR; future load tests must run the JAR and must not package concurrently against a class-directory service.

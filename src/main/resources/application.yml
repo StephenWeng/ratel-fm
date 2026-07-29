@@ -174,7 +174,7 @@ app:
       # Ollama 响应体最大读取字符数。
       max-response-chars: ${FM_AI_OLLAMA_MAX_RESPONSE_CHARS:80000}
       # Ollama 最大输出 token 数。
-      max-output-tokens: ${FM_AI_OLLAMA_MAX_OUTPUT_TOKENS:800}
+      max-output-tokens: ${FM_AI_OLLAMA_MAX_OUTPUT_TOKENS:500}
       # Ollama 推理上下文窗口；本地部署默认 4096，避免上下文过大导致响应明显变慢。
       context-window-tokens: ${FM_AI_OLLAMA_CONTEXT_WINDOW_TOKENS:4096}
       # Ollama 模型常驻时间；连续问答时减少反复装载模型的等待。

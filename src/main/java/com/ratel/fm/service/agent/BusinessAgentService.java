@@ -733,8 +733,15 @@ public class BusinessAgentService {
     }
 
     private String keyword(String question) {
-        String value = value(question);
-        return value.isBlank() ? null : value;
+        String text = value(question);
+        if (text.isBlank()) {
+            return null;
+        }
+        java.util.regex.Matcher namedEntity = java.util.regex.Pattern.compile(
+                "(?:压测)?(?:供应商|客户|物料|项目|仓库)\\s*\\d+|PERF_[A-Z_]+_?\\d+",
+                java.util.regex.Pattern.CASE_INSENSITIVE
+        ).matcher(text);
+        return namedEntity.find() ? namedEntity.group().replaceAll("\\s+", "") : null;
     }
 
     private String businessNo(String question) {

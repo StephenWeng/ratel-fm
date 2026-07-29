@@ -161,6 +161,11 @@ create table if not exists fm_vouchers (
     belong_month varchar(7) not null,
     project_code varchar(80),
     project_name varchar(160),
+    customer_name varchar(160),
+    department_name varchar(120),
+    business_user varchar(120),
+    bookkeeper varchar(120),
+    maker varchar(120),
     summary varchar(300) not null,
     status varchar(30) not null,
     total_debit numeric(26, 8) not null default 0,
@@ -660,6 +665,11 @@ alter table fm_vouchers add column if not exists total_credit_cny numeric(26, 8)
 alter table fm_vouchers add column if not exists belong_month varchar(7);
 alter table fm_vouchers add column if not exists project_code varchar(80);
 alter table fm_vouchers add column if not exists project_name varchar(160);
+alter table fm_vouchers add column if not exists customer_name varchar(160);
+alter table fm_vouchers add column if not exists department_name varchar(120);
+alter table fm_vouchers add column if not exists business_user varchar(120);
+alter table fm_vouchers add column if not exists bookkeeper varchar(120);
+alter table fm_vouchers add column if not exists maker varchar(120);
 alter table fm_vouchers add column if not exists source_type varchar(40);
 alter table fm_vouchers add column if not exists source_id bigint;
 alter table fm_vouchers add column if not exists source_title varchar(160);
@@ -945,6 +955,11 @@ comment on column fm_vouchers.voucher_date is '凭证日期';
 comment on column fm_vouchers.belong_month is '所属年月，格式 yyyy-MM，用于标记账目发生月份';
 comment on column fm_vouchers.project_code is '项目字典编码，来自基础信息项目字典';
 comment on column fm_vouchers.project_name is '项目名称快照';
+comment on column fm_vouchers.customer_name is '客户名称快照';
+comment on column fm_vouchers.department_name is '部门名称快照';
+comment on column fm_vouchers.business_user is '业务员名称';
+comment on column fm_vouchers.bookkeeper is '记账人名称';
+comment on column fm_vouchers.maker is '制单人名称';
 comment on column fm_vouchers.summary is '凭证摘要';
 comment on column fm_vouchers.status is '凭证状态';
 comment on column fm_vouchers.total_debit is '借方合计金额，保留8位小数';

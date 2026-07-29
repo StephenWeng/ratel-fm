@@ -60,6 +60,31 @@ public class Voucher extends BaseEntity {
     @Comment("项目名称快照")
     private String projectName;
 
+    /** 客户名称，手工录入或来源业务快照，用于在线凭证辅助栏展示。 */
+    @Column(length = 160)
+    @Comment("客户名称快照")
+    private String customerName;
+
+    /** 部门名称，来自部门字典或手工来源快照。 */
+    @Column(length = 120)
+    @Comment("部门名称快照")
+    private String departmentName;
+
+    /** 业务员名称，用于在线凭证辅助栏展示。 */
+    @Column(length = 120)
+    @Comment("业务员名称")
+    private String businessUser;
+
+    /** 记账人名称，默认当前用户，可手工修改。 */
+    @Column(length = 120)
+    @Comment("记账人名称")
+    private String bookkeeper;
+
+    /** 制单人名称，默认当前用户，可手工修改。 */
+    @Column(length = 120)
+    @Comment("制单人名称")
+    private String maker;
+
     /** 凭证摘要，概括本次记账业务内容。 */
     @Column(nullable = false, length = 200)
     @Comment("凭证摘要")
@@ -266,6 +291,46 @@ public class Voucher extends BaseEntity {
      */
     public void setProjectName(String projectName) {
         this.projectName = projectName;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
+    }
+
+    public String getBusinessUser() {
+        return businessUser;
+    }
+
+    public void setBusinessUser(String businessUser) {
+        this.businessUser = businessUser;
+    }
+
+    public String getBookkeeper() {
+        return bookkeeper;
+    }
+
+    public void setBookkeeper(String bookkeeper) {
+        this.bookkeeper = bookkeeper;
+    }
+
+    public String getMaker() {
+        return maker;
+    }
+
+    public void setMaker(String maker) {
+        this.maker = maker;
     }
 
     /**

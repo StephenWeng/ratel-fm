@@ -3,6 +3,7 @@ package com.ratel.fm.service.knowledge;
 import com.alibaba.fastjson2.JSONObject;
 import com.ratel.fm.common.BusinessException;
 import com.ratel.fm.common.ResponseCode;
+import com.ratel.fm.common.concurrent.NamedDaemonThreadFactory;
 import com.ratel.fm.config.ai.AiProperties;
 import com.ratel.fm.domain.attachment.AttachmentBusinessType;
 import com.ratel.fm.domain.attachment.BusinessAttachment;
@@ -41,6 +42,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PreDestroy;
+
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -50,6 +53,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * AI 知识索引构建服务。
@@ -126,6 +133,16 @@ public class KnowledgeIndexService {
      * 字段 lastRebuildError：记录最近一次全量索引失败原因，避免索引失败只能查看日志。
      */
     private volatile String lastRebuildError;
+    /** 增量索引与核心业务事务解耦；单线程保持同一来源更新顺序，有限队列保护低配机器内存。 */
+    private final ThreadPoolExecutor incrementalIndexExecutor = new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(2000),
+            new NamedDaemonThreadFactory("knowledge-incremental-"),
+            new ThreadPoolExecutor.AbortPolicy()
+    );
 
     /**
      * 构造 KnowledgeIndexService 实例。
@@ -193,6 +210,7 @@ public class KnowledgeIndexService {
             indexSystemModules(documents);
             indexSubjects(documents);
             indexBasicDictionaries(documents);
+            fillMissingEmbeddings(documents);
             vectorStore().replaceAll(documents);
             lastRebuildAt = OffsetDateTime.now();
             lastRebuildError = null;
@@ -230,6 +248,7 @@ public class KnowledgeIndexService {
         // 仅收集附件来源的知识分片，避免影响其他业务索引。
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexAttachments(documents);
+        fillMissingEmbeddings(documents);
         vectorStore().replaceSourceType(KnowledgeSourceType.ATTACHMENT, documents);
     }
 
@@ -250,7 +269,7 @@ public class KnowledgeIndexService {
         for (BusinessAttachment relation : businessAttachmentRepository.findByAttachment_IdOrderBySortOrderAscIdAsc(attachmentId)) {
             indexAttachment(documents, relation);
         }
-        vectorStore().replaceSource(KnowledgeSourceType.ATTACHMENT, attachmentId, documents);
+        replaceSourceSafely(KnowledgeSourceType.ATTACHMENT, attachmentId, documents);
     }
 
     @Transactional
@@ -263,7 +282,7 @@ public class KnowledgeIndexService {
         if (attachmentId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.ATTACHMENT, attachmentId);
+        deleteSourceSafely(KnowledgeSourceType.ATTACHMENT, attachmentId);
     }
 
     @Transactional
@@ -282,7 +301,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexBasicDictionary(documents, dictionary);
-        vectorStore().replaceSource(KnowledgeSourceType.BASIC_DICTIONARY, dictionary.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.BASIC_DICTIONARY, dictionary.getId(), documents);
     }
 
     @Transactional
@@ -295,7 +314,7 @@ public class KnowledgeIndexService {
         if (dictionaryId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.BASIC_DICTIONARY, dictionaryId);
+        deleteSourceSafely(KnowledgeSourceType.BASIC_DICTIONARY, dictionaryId);
     }
 
     @Transactional
@@ -313,7 +332,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexSubject(documents, subject);
-        vectorStore().replaceSource(KnowledgeSourceType.SUBJECT, subject.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.SUBJECT, subject.getId(), documents);
     }
 
     @Transactional
@@ -326,7 +345,7 @@ public class KnowledgeIndexService {
         if (subjectId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.SUBJECT, subjectId);
+        deleteSourceSafely(KnowledgeSourceType.SUBJECT, subjectId);
     }
 
     @Transactional
@@ -344,7 +363,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexVoucher(documents, voucher);
-        vectorStore().replaceSource(KnowledgeSourceType.VOUCHER, voucher.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.VOUCHER, voucher.getId(), documents);
     }
 
     @Transactional
@@ -357,7 +376,7 @@ public class KnowledgeIndexService {
         if (voucherId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.VOUCHER, voucherId);
+        deleteSourceSafely(KnowledgeSourceType.VOUCHER, voucherId);
     }
 
     @Transactional
@@ -375,7 +394,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexPurchaseOrder(documents, order);
-        vectorStore().replaceSource(KnowledgeSourceType.PURCHASE_ORDER, order.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.PURCHASE_ORDER, order.getId(), documents);
     }
 
     @Transactional
@@ -388,7 +407,7 @@ public class KnowledgeIndexService {
         if (orderId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.PURCHASE_ORDER, orderId);
+        deleteSourceSafely(KnowledgeSourceType.PURCHASE_ORDER, orderId);
     }
 
     @Transactional
@@ -407,7 +426,7 @@ public class KnowledgeIndexService {
         // 单据保存后只重建当前物流单，避免频繁全量索引。
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexShipment(documents, shipment);
-        vectorStore().replaceSource(KnowledgeSourceType.SHIPMENT, shipment.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.SHIPMENT, shipment.getId(), documents);
     }
 
     @Transactional
@@ -420,7 +439,7 @@ public class KnowledgeIndexService {
         if (shipmentId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.SHIPMENT, shipmentId);
+        deleteSourceSafely(KnowledgeSourceType.SHIPMENT, shipmentId);
     }
 
     @Transactional
@@ -439,7 +458,7 @@ public class KnowledgeIndexService {
         // 单条库存流水保存后只重建当前流水，降低索引更新开销。
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexInventoryLedger(documents, ledger);
-        vectorStore().replaceSource(KnowledgeSourceType.INVENTORY_LEDGER, ledger.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.INVENTORY_LEDGER, ledger.getId(), documents);
     }
 
     @Transactional
@@ -452,7 +471,7 @@ public class KnowledgeIndexService {
         if (ledgerId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.INVENTORY_LEDGER, ledgerId);
+        deleteSourceSafely(KnowledgeSourceType.INVENTORY_LEDGER, ledgerId);
     }
 
     @Transactional
@@ -470,7 +489,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexArApBill(documents, bill);
-        vectorStore().replaceSource(KnowledgeSourceType.AR_AP_BILL, bill.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.AR_AP_BILL, bill.getId(), documents);
     }
 
     @Transactional
@@ -483,7 +502,7 @@ public class KnowledgeIndexService {
         if (billId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.AR_AP_BILL, billId);
+        deleteSourceSafely(KnowledgeSourceType.AR_AP_BILL, billId);
     }
 
     @Transactional
@@ -498,7 +517,7 @@ public class KnowledgeIndexService {
         }
         List<KnowledgeDocument> documents = new ArrayList<>();
         indexCashierTransaction(documents, transaction);
-        vectorStore().replaceSource(KnowledgeSourceType.CASHIER_TRANSACTION, transaction.getId(), documents);
+        replaceSourceSafely(KnowledgeSourceType.CASHIER_TRANSACTION, transaction.getId(), documents);
     }
 
     @Transactional
@@ -511,7 +530,56 @@ public class KnowledgeIndexService {
         if (transactionId == null) {
             return;
         }
-        vectorStore().deleteSource(KnowledgeSourceType.CASHIER_TRANSACTION, transactionId);
+        deleteSourceSafely(KnowledgeSourceType.CASHIER_TRANSACTION, transactionId);
+    }
+
+    /** 单条业务索引失败时降级，不允许 AI 基础设施阻断核心业务提交。 */
+    private void replaceSourceSafely(KnowledgeSourceType sourceType, Long sourceId, List<KnowledgeDocument> documents) {
+        List<KnowledgeDocument> snapshot = List.copyOf(documents);
+        try {
+            incrementalIndexExecutor.execute(() -> replaceSourceNow(sourceType, sourceId, snapshot));
+        } catch (RejectedExecutionException ex) {
+            lastRebuildError = ex.getMessage();
+            LOGGER.warn("AI incremental index queue is full; business data remains committed and requires a later full rebuild. sourceType={}, sourceId={}",
+                    sourceType, sourceId);
+        }
+    }
+
+    private void replaceSourceNow(KnowledgeSourceType sourceType, Long sourceId, List<KnowledgeDocument> documents) {
+        try {
+            fillMissingEmbeddings(documents);
+            vectorStore().replaceSource(sourceType, sourceId, documents);
+        } catch (RuntimeException ex) {
+            lastRebuildError = ex.getMessage();
+            LOGGER.warn("Business data saved but AI incremental index refresh failed. sourceType={}, sourceId={}, reason={}",
+                    sourceType, sourceId, ex.getMessage());
+        }
+    }
+
+    /** 单条业务索引清理失败时降级，后续由全量重建纠正残留分片。 */
+    private void deleteSourceSafely(KnowledgeSourceType sourceType, Long sourceId) {
+        try {
+            incrementalIndexExecutor.execute(() -> deleteSourceNow(sourceType, sourceId));
+        } catch (RejectedExecutionException ex) {
+            lastRebuildError = ex.getMessage();
+            LOGGER.warn("AI incremental index queue is full; deleted source requires a later full rebuild. sourceType={}, sourceId={}",
+                    sourceType, sourceId);
+        }
+    }
+
+    private void deleteSourceNow(KnowledgeSourceType sourceType, Long sourceId) {
+        try {
+            vectorStore().deleteSource(sourceType, sourceId);
+        } catch (RuntimeException ex) {
+            lastRebuildError = ex.getMessage();
+            LOGGER.warn("Business data deleted but AI incremental index cleanup failed. sourceType={}, sourceId={}, reason={}",
+                    sourceType, sourceId, ex.getMessage());
+        }
+    }
+
+    @PreDestroy
+    void shutdownIncrementalIndexExecutor() {
+        incrementalIndexExecutor.shutdownNow();
     }
 
     @Transactional(readOnly = true)
@@ -1205,8 +1273,19 @@ public class KnowledgeIndexService {
             document.setOrganizationCode(organizationCode);
             document.setContentHash(sha256(sourceType + ":" + sourceId + ":" + index + ":" + chunk));
             document.setChunkIndex(index++);
-            fillEmbedding(document, chunk);
             documents.add(document);
+        }
+    }
+
+    /** 在索引工作线程或显式全量重建流程中生成向量，避免业务保存线程等待本地模型。 */
+    private void fillMissingEmbeddings(List<KnowledgeDocument> documents) {
+        if (documents == null || documents.isEmpty() || !shouldBuildEmbedding()) {
+            return;
+        }
+        for (KnowledgeDocument document : documents) {
+            if (document != null && document.getEmbeddingJson() == null) {
+                fillEmbedding(document, value(document.getContent()));
+            }
         }
     }
 

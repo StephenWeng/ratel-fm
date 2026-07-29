@@ -50,6 +50,7 @@ Navigation is organized by business domain:
 - Cashier: payments, receipts, transactions.
 - Accounting platform: source documents, voucher drafts, voucher generation.
 - Accounting: vouchers, accounts, reports, periods.
+- Voucher entry: uses an online-voucher WYSIWYG interaction. Summary is line-level instead of a whole-voucher input. Five lines are shown by default and users can add more lines. Blank lines may remain but are not saved; once any column in a line has content, that line must complete summary, subject, debit/credit amount direction, currency, and exchange-rate validation. At least one valid line is required.
 - Workflow: definitions, tasks, history.
 - AI Assistant: ratel assistant, Business Agent, local knowledge.
 - System management: organization, permissions, logs, configuration.
@@ -88,9 +89,11 @@ submit document -> match workflow -> approve node -> approve/reject -> update bu
 
 ratel assistant supports natural language QA, knowledge retrieval, business explanation, and entry guidance. Answers should contain conclusions and key evidence only. Long raw knowledge chunks, retrieval cards, and internal context are not shown.
 
+Before sending, users must choose the intent for the current turn from a dropdown, with `思考` as the default. `思考` is for QA, retrieval, explanation, reasoning, and business analysis, and uses the deep reasoning model use case. `AI写作` is for report or file generation. AI writing should understand file type, business object, date range, dimensions, and metrics, and can generate xlsx, docx, pdf, and pptx files. When business data is involved, file content must come from deterministic backend queries under current account-set and permission scope, not model fabrication.
+
 File-existence questions must answer whether a file exists first, then list matching file names and key evidence. Follow-up questions must use recent conversation context.
 When conclusions or key evidence contain multiple items, the assistant must use numbered lines instead of hyphen bullets.
-Reasoning is allowed only as an internal process. The user-facing answer must not expose chain-of-thought drafts, review notes, or think tags.
+While thinking, the UI may show staged progress similar to mainstream LLM products, such as understanding the question, reading business context, checking metric rules, and preparing the conclusion. This is not internal chain-of-thought, and it must be removed after the final answer is returned. User-facing final answers must not expose chain-of-thought drafts, review notes, or think tags.
 Professional finance questions such as business statistics, reporting, reconciliation, aging, cash flow, voucher suggestions, purchasing, inventory, AR/AP, and workflow should be routed through live system data and Business Agent capabilities before knowledge-file QA.
 Business-analysis answers should rely on structured operating metrics before model summarization, so conclusions are based on consistent purchase, AR/AP, and inventory snapshots.
 

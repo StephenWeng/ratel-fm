@@ -59,6 +59,8 @@ ratel assistant is responsible for:
 - answering file-existence questions at file level.
 - opening the floating panel at a stable taller height; hiding the input and send button during retrieval and reasoning while showing only `思考中` with a thinking animation.
 
+Before sending, users choose `思考` or `AI写作` from a dropdown, with `思考` as the default. `思考` uses the deep reasoning model use case for QA, retrieval, explanation, and business analysis. `AI写作` generates xlsx, docx, pdf, and pptx files from user intent. The model may help understand file type, business object, date range, dimensions, and metrics, but business data must come from deterministic backend queries with permission checks and account-set isolation. Business analysis reports must read a structured business metrics snapshot before composing report content.
+
 Internal assistant components:
 
 - `AssistantModelRouter`: selects chat, command, or reasoning model use cases.
@@ -75,7 +77,7 @@ Output requirements:
 - AI assistant and Business Agent UI must use global theme variables and support light, dark, emerald, finance-blue, and vue-gold themes.
 - For file-existence questions, list matched file names in the conclusion. For follow-up summarization, preserve the previous document topic. Resume queries should expand to candidate, engineer, work experience, project experience, and location terms.
 - For multi-item conclusions or key evidence, use numbered lines instead of hyphen bullets.
-- Do not expose chain-of-thought drafts, review notes, or think tags. Streaming and final answers must both be sanitized.
+- The UI may show staged thinking progress, but must not expose chain-of-thought drafts, review notes, or think tags. Staged progress is removed after the final answer returns, and streaming and final answers must both be sanitized.
 - Use the unified finance vocabulary for intent routing. Professional finance/statistics questions must prioritize live system context and reasoning; document retrieval is only primary for attachment, file, contract, policy, resume, and knowledge-base questions.
 
 ## 5. File-Existence QA
@@ -190,3 +192,4 @@ When Agent is disabled, the product hides entries and stops routing flows to Age
 - Backend still checks Agent switch and permissions.
 - Qdrant failures have clear fallback or error behavior.
 - AI, RAG, Agent, model, prompt, retrieval, or OCR changes update both English and Chinese AI documents and are reflected across all root Markdown documents.
+- AI writing business analysis reports must have automated tests covering metric rules, permission boundaries, and generated-file key fields. Business Agent regression must cover business metrics, risks, self-checks, and low-data scenarios.

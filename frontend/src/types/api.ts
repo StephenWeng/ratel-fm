@@ -623,6 +623,11 @@ export interface VoucherView {
    * 字段 projectName：表示项目名称快照，用于列表、表单和查看流水展示。
    */
   projectName?: string
+  customerName?: string
+  departmentName?: string
+  businessUser?: string
+  bookkeeper?: string
+  maker?: string
   /**
    * 字段 summary：表示表单、筛选条件、接口数据或组件状态中的 summary 值。
    */

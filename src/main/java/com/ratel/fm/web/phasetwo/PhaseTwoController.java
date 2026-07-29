@@ -6,6 +6,7 @@ import com.ratel.fm.domain.receivable.ArApStatus;
 import com.ratel.fm.domain.receivable.ArApType;
 import com.ratel.fm.service.assistant.AiAssistantService;
 import com.ratel.fm.service.assistant.AiAssistantStreamService;
+import com.ratel.fm.service.assistant.AiWritingService;
 import com.ratel.fm.service.inventory.InventoryService;
 import com.ratel.fm.service.receivable.ArApService;
 import com.ratel.fm.service.report.FinancialStatementService;
@@ -21,12 +22,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -61,6 +66,7 @@ public class PhaseTwoController {
      * 字段 aiAssistantStreamService：保存 ratel助手 SSE 流式输出服务。
      */
     private final AiAssistantStreamService aiAssistantStreamService;
+    private final AiWritingService aiWritingService;
 
     /**
      * 构造 PhaseTwoController 实例。
@@ -75,13 +81,15 @@ public class PhaseTwoController {
             ArApService arApService,
             FinancialStatementService financialStatementService,
             AiAssistantService aiAssistantService,
-            AiAssistantStreamService aiAssistantStreamService
+            AiAssistantStreamService aiAssistantStreamService,
+            AiWritingService aiWritingService
     ) {
         this.inventoryService = inventoryService;
         this.arApService = arApService;
         this.financialStatementService = financialStatementService;
         this.aiAssistantService = aiAssistantService;
         this.aiAssistantStreamService = aiAssistantStreamService;
+        this.aiWritingService = aiWritingService;
     }
 
     @ApiOperationSupport(order = 10, author = "ratel / WenZhang / 18782945613")
@@ -471,5 +479,21 @@ public class PhaseTwoController {
                         .map(item -> new AiAssistantService.ConversationMessage(item.role(), item.content()))
                         .toList()
         );
+    }
+
+    @ApiOperationSupport(order = 82, author = "ratel / WenZhang / 18782945613")
+    @Operation(summary = "ratel助手 AI写作生成文件", description = "根据用户手动选择的 AI写作 意图生成 xlsx、docx、pdf 或 pptx 文件。")
+    @PreAuthorize("hasAuthority('AI_ASSISTANT_USE')")
+    @PostMapping("/ai/writing/generate")
+    public ResponseEntity<byte[]> aiWriting(@Valid @RequestBody AiAssistantRequest request) {
+        AiWritingService.GeneratedFile file = aiWritingService.generate(request.question());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.filename(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .header("X-AI-Writing-Summary", java.util.Base64.getEncoder().encodeToString(file.summary().getBytes(StandardCharsets.UTF_8)))
+                .body(file.content());
     }
 }

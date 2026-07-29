@@ -166,6 +166,7 @@ public class AiAssistantService {
             if (answer == null || answer.isBlank()) {
                 answer = fallbackAnswer(modelRoute, normalizedMode, plan.systemContext(), plan.contexts(), plan.webResults());
             }
+            answer = reconcileBusinessEvidence(normalizedQuestion, answer, plan.systemContext(), plan.contexts());
         }
         return new AiAssistantResponse(
                 question,
@@ -178,6 +179,46 @@ public class AiAssistantService {
                 updateConversationSummary(plan.conversationContext(), normalizedQuestion, answer),
                 plan.conversationContext().recentRawRounds()
         );
+    }
+
+    /** 检测模型否定已存在业务数据时，回退为授权实时上下文中的确定性事实。 */
+    private String reconcileBusinessEvidence(
+            String question,
+            String answer,
+            String systemContext,
+            List<KnowledgeSearchResult> contexts
+    ) {
+        String text = value(answer);
+        String evidence = value(systemContext);
+        boolean hasBusinessEvidence = evidence.matches("(?s).*(总数|近半年|命中|单据数|流水数):?\\s*[1-9]\\d*.*")
+                || (contexts != null && !contexts.isEmpty());
+        boolean deniesEvidence = Pattern.compile("(?:没有|暂无|无|未提供|找不到).{0,24}(?:数据|信息|记录|单据|流水)|无法.{0,16}(?:分析|确定|查询)")
+                .matcher(text)
+                .find();
+        if (!hasBusinessEvidence || !deniesEvidence) {
+            return text;
+        }
+        List<String> facts = evidence.lines()
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .filter(line -> line.contains("近半年") || line.contains("应收应付") || line.contains("采购")
+                        || line.contains("库存") || line.contains("未结") || line.contains("逾期") || line.contains("未制证"))
+                .filter(line -> line.matches(".*\\d+.*"))
+                .distinct()
+                .limit(8)
+                .toList();
+        if (facts.isEmpty()) {
+            return text;
+        }
+        return """
+                结论：
+                系统中存在与问题相关的业务数据。模型生成内容与实时数据发生矛盾，已改用确定性业务事实返回；请按下列数据继续核对，系统未执行任何写入、过账、付款或审批。
+
+                关键依据：
+                %s
+                """.formatted(IntStream.range(0, facts.size())
+                .mapToObj(index -> (index + 1) + "、" + facts.get(index))
+                .collect(Collectors.joining("\n")));
     }
 
     /**
@@ -200,11 +241,8 @@ public class AiAssistantService {
         String retrievalQuestion = retrievalQuestion(normalizedQuestion, conversationContext);
         boolean localMode = !"web".equals(normalizedMode);
         boolean webMode = !"local".equals(normalizedMode) && !"command".equals(normalizedMode);
-        boolean professionalFinancialQuestion = FinancialIntentTerms.isFinancialProfessionalQuestion(retrievalQuestion)
-                && !FinancialIntentTerms.isKnowledgeQuestion(retrievalQuestion);
         String systemContext = localMode ? systemContextService.buildContext(retrievalQuestion) : "";
         List<KnowledgeSearchResult> contexts = localMode
-                && !professionalFinancialQuestion
                 ? knowledgeSearchService.searchForContext(retrievalQuestion)
                 : List.of();
         contexts = prioritizeExactMatches(normalizedQuestion, contexts);
@@ -229,8 +267,18 @@ public class AiAssistantService {
             directAnswer = fileExistenceAnswer(contexts);
         } else if (requiresExactLocalRecord && !hasExactLocalRecord && webResults.isEmpty()) {
             directAnswer = exactRecordNotFoundAnswer(businessTokens);
+        } else if (localMode && FinancialIntentTerms.isFinancialProfessionalQuestion(retrievalQuestion)
+                && !FinancialIntentTerms.isKnowledgeQuestion(retrievalQuestion)
+                && requiresDeterministicFinancialGuard(normalizedQuestion)
+                && !systemContext.isBlank()) {
+            directAnswer = financialFactsAnswer(normalizedQuestion, systemContext);
         } else if (canAnswerFromExactLocalContext(normalizedQuestion, normalizedMode, contexts, webResults, businessTokens)) {
             directAnswer = exactLocalContextAnswer(contexts, businessTokens);
+        } else if (localMode && FinancialIntentTerms.isFinancialProfessionalQuestion(retrievalQuestion)
+                && !FinancialIntentTerms.isKnowledgeQuestion(retrievalQuestion)
+                && !requiresDeepFinancialReasoning(normalizedQuestion)
+                && !systemContext.isBlank()) {
+            directAnswer = financialFactsAnswer(normalizedQuestion, systemContext);
         } else if (contexts.isEmpty() && webResults.isEmpty() && systemContext.isBlank()) {
             directAnswer = noContextAnswer(normalizedMode);
         }
@@ -246,6 +294,62 @@ public class AiAssistantService {
                 citations,
                 directAnswer
         );
+    }
+
+    /** 分析、比较和建议类财务问题必须进入推理模型；单纯查数仍使用确定性快速回答。 */
+    private boolean requiresDeepFinancialReasoning(String question) {
+        return containsAny(question,
+                "分析", "经营", "风险", "原因", "为什么", "趋势", "预测", "对比", "比较",
+                "建议", "改善", "优化", "异常", "合理", "是否健康", "最该盯", "怎么办");
+    }
+
+    /** 会计分录和当前系统没有完整事实链的指标使用确定性回答，禁止模型补造科目、发票或利润数据。 */
+    private boolean requiresDeterministicFinancialGuard(String question) {
+        return containsAny(question,
+                "制证", "记账", "借方", "贷方",
+                "毛利", "成本倒挂", "没赚钱", "成本比收入",
+                "试算", "结账", "关账", "跨期", "暂估",
+                "发票", "税额", "抵扣", "抵税", "到票",
+                "现金流", "资金缺口");
+    }
+
+    /** 使用授权实时汇总直接回答确定性财务问题，避免模型忽略半年数据或生成错误会计分录。 */
+    private String financialFactsAnswer(String question, String systemContext) {
+        List<String> facts = value(systemContext).lines()
+                .map(String::trim)
+                .filter(line -> !line.isBlank() && line.matches(".*\\d+.*"))
+                .filter(line -> line.contains("近半年") || line.contains("总数") || line.contains("状态分布")
+                        || line.contains("未结") || line.contains("逾期") || line.contains("未制证")
+                        || line.contains("最近采购") || line.contains("最近库存") || line.contains("最近到期"))
+                .distinct()
+                .limit(12)
+                .toList();
+        String topicConclusion;
+        if (containsAny(question, "制证", "记账", "借方", "贷方", "怎么记")) {
+            topicConclusion = "采购入库并确认应付时，凭证草稿应为：借方记存货类科目（取得可抵扣发票时按制度另记进项税），贷方记应付账款；实际付款时再借记应付账款、贷记银行存款。供应商、项目、物料和部门应进入辅助核算，具体科目必须从当前账套启用末级科目中确认。系统仅提供草稿建议，不会自动生成凭证、过账、付款或提交审批。";
+        } else if (containsAny(question, "毛利", "成本倒挂", "没赚钱", "成本比收入")) {
+            topicConclusion = "当前系统上下文没有按项目确认的收入与结转成本事实，不能据此计算项目毛利额、毛利率或认定成本倒挂。现有采购金额、应收应付余额不能替代收入和成本；需先完成收入确认、成本归集及凭证过账，再按项目汇总收入减成本。";
+        } else if (containsAny(question, "试算", "结账", "关账", "跨期", "暂估")) {
+            topicConclusion = "本月结账与试算不能仅凭业务单据判定。必须核对凭证总数、未过账凭证、借贷平衡、会计期间、跨期单据和暂估入账；当前凭证数据不足时应保持未结账，不得把应收应付或采购记录当作试算平衡证据。";
+        } else if (containsAny(question, "发票", "税额", "抵扣", "抵税", "到票")) {
+            topicConclusion = "当前授权上下文没有独立的进项发票台账、认证状态和可抵扣税额事实，无法确认未到票、税额差异或不可抵扣风险。采购与应付金额只能作为待核对范围，不能替代发票和税务数据。";
+        } else if (containsAny(question, "现金流", "资金缺口")) {
+            topicConclusion = "当前上下文可用于安排应收回款和应付付款，但没有银行账户可用余额及已承诺支出，不能断言经营活动现金流或未来30天资金缺口。应按未来30天到期应付减可实现应收回款，再与可用资金比较，并优先催收逾期客户款。";
+        } else if (containsAny(question, "应付", "供应商", "欠款", "欠钱")) {
+            topicConclusion = "已按最近半年应付与供应商口径汇总待付、未结和逾期事实；供应商风险应以未结余额和到期日排序。";
+        } else if (containsAny(question, "应收", "客户", "没收回来", "回款")) {
+            topicConclusion = "已按最近半年应收、客户和项目口径汇总待收、未结和逾期事实；客户回款风险应以未结余额和账龄排序。";
+        } else if (containsAny(question, "库存", "物料", "仓库", "入库", "收货")) {
+            topicConclusion = "已按最近半年采购、库存、物料和仓库口径汇总流水及入库未制证事实；链路差异仍需按来源单号逐笔核对。";
+        } else {
+            topicConclusion = "已按当前权限下的最近半年业务数据返回确定性财务汇总。";
+        }
+        String factText = facts.isEmpty()
+                ? "1、当前授权上下文未提供可量化汇总，请缩小到具体单号、供应商、客户、项目或物料后重试。"
+                : IntStream.range(0, facts.size())
+                        .mapToObj(index -> (index + 1) + "、" + facts.get(index))
+                        .collect(Collectors.joining("\n"));
+        return "结论：\n" + topicConclusion + "\n\n关键依据：\n" + factText;
     }
 
     /**
@@ -1041,7 +1145,7 @@ public class AiAssistantService {
         }
         // 变量说明：normalized 保存当前步骤计算、查询或转换得到的中间结果。
         String normalized = mode.trim().toLowerCase(Locale.ROOT);
-        if (List.of("local", "web", "hybrid", "command").contains(normalized)) {
+        if (List.of("local", "web", "hybrid", "command", "reasoning").contains(normalized)) {
             return normalized;
         }
         return "hybrid";

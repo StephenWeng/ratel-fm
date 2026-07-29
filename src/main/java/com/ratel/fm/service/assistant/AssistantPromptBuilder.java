@@ -91,6 +91,7 @@ public class AssistantPromptBuilder {
                 8. 涉及经营统计、财务报表、往来账款、资金现金流、采购库存、对账、制证、账龄、逾期、利润、毛利等财务专业问题时，优先基于“实时系统上下文”做统计、归纳和风险判断，不要改为知识库文件问答；
                 9. 不要输出内部思考过程、推理草稿、复盘语句、<think> 标签或“重新读一下用户的问题”这类过程性文字；
                 10. 不要使用常识或猜测补齐系统内缺失字段，也不要把未在上下文中出现的网页内容当作依据。
+                11. 实时系统上下文或本地知识上下文已给出非零记录时，不得回答“没有数据”“暂无记录”或“无法分析”；只能说明具体缺失的字段，并先回答已有的确定性事实。
                 """.formatted(question, modeLabel, blank(conversationContext), blank(compactSystemContext(systemContext)), blank(contextText), blank(webContextText));
     }
 

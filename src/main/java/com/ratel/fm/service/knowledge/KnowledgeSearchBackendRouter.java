@@ -40,13 +40,13 @@ public class KnowledgeSearchBackendRouter {
      */
     public boolean useEmbedding(String mode) {
         return ("semantic".equals(mode) || "hybrid".equals(mode))
-                && (useQdrant() || embeddingScoringEnabled());
+                && aiProperties.getKnowledge().isEmbeddingEnabled();
     }
 
     /**
      * 当前后端是否启用向量评分。
      */
     public boolean embeddingScoringEnabled() {
-        return aiProperties.getKnowledge().isEmbeddingEnabled() || useQdrant();
+        return aiProperties.getKnowledge().isEmbeddingEnabled();
     }
 }

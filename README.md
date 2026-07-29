@@ -9,6 +9,7 @@ Ratel FM is a lightweight financial management ERP for small teams and local dep
 ## Highlights
 
 - Accounting: chart of accounts, vouchers, posting, unposting, trial balance, statements, and accounting periods.
+- Voucher entry: create/edit uses an online-voucher WYSIWYG entry surface with five default lines and add-line support; blank lines are ignored, while any line with content must pass full validation.
 - Business documents: purchase orders, logistics orders, inventory ledger, material stock, AR/AP bills, settlement, and cashier transactions.
 - Accounting platform: creates voucher drafts from source documents while preserving source links.
 - Workflow: workflow definitions, bindings, tasks, approval history, approval and rejection.
@@ -18,6 +19,8 @@ Ratel FM is a lightweight financial management ERP for small teams and local dep
 - AI: ratel assistant, local knowledge QA, intelligent search, OCR, Business Agent, Ollama, and Qdrant.
 - AI component status: shows configured Ollama models and locally installed Ollama model list for deployment diagnosis.
 - ratel assistant loading state: hides the question input and send button while thinking, shows only `思考中` with a thinking animation, and opens with a taller stable panel.
+- ratel assistant AI writing: users choose `思考` or `AI写作` from a dropdown before sending, with `思考` as the default. AI writing can generate xlsx, docx, pdf, and pptx files; purchase lists, daily statistics, and business analysis reports reuse real current-account-set business metrics.
+- ratel assistant deep thinking: the `思考` intent routes to the reasoning model use case. Before the final answer is ready, the UI shows staged thinking progress and removes that temporary progress when the conclusion is returned.
 - ratel assistant retrieval: file-existence answers list matched files in the conclusion, follow-up summarization keeps the previous file topic, and resume-related queries expand to candidate/profile terms.
 - ratel assistant answer format: multi-item conclusions and key evidence use numbered lines instead of hyphen bullets.
 - ratel assistant reasoning safety: internal reasoning drafts and think tags are stripped from both streaming and final answers.

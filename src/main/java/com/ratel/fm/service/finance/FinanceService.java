@@ -52,6 +52,7 @@ import com.ratel.fm.web.dto.operationlog.BusinessOperationLogDtos.BusinessOperat
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -365,7 +366,8 @@ public class FinanceService {
         voucher.setBelongMonth(resolveBelongMonth(request.belongMonth(), request.voucherDate()));
         voucher.setProjectCode(firstText(request.projectCode(), null));
         voucher.setProjectName(firstText(request.projectName(), null));
-        voucher.setSummary(request.summary());
+        applyVoucherAuxiliaryFields(voucher, request);
+        voucher.setSummary(resolveVoucherSummary(request));
         voucher.setSourceBizNo(firstText(request.sourceBizNo(), null));
         voucher.setSourceType(request.sourceType());
         voucher.setSourceId(request.sourceId());
@@ -409,7 +411,8 @@ public class FinanceService {
         voucher.setBelongMonth(resolveBelongMonth(request.belongMonth(), request.voucherDate()));
         voucher.setProjectCode(firstText(request.projectCode(), null));
         voucher.setProjectName(firstText(request.projectName(), null));
-        voucher.setSummary(request.summary());
+        applyVoucherAuxiliaryFields(voucher, request);
+        voucher.setSummary(resolveVoucherSummary(request));
         voucher.setSourceBizNo(firstText(request.sourceBizNo(), null));
         // 步骤3补充：自动凭证的来源链路不可被旧表单误清空；只有请求明确携带来源字段时才更新。
         if (request.sourceType() != null || request.sourceId() != null || firstText(request.sourceTitle(), null) != null) {
@@ -506,6 +509,11 @@ public class FinanceService {
                 null,
                 source.projectCode(),
                 source.projectName(),
+                null,
+                null,
+                null,
+                null,
+                null,
                 summary,
                 source.sourceNo(),
                 source.sourceType(),
@@ -654,7 +662,7 @@ public class FinanceService {
                 .and(SearchSpecs.equal("belongMonth", firstText(belongMonth, null)))
                 .and(SearchSpecs.equal("projectCode", firstText(projectCode, null)))
                 .and(SearchSpecs.like("voucherNo", voucherNo))
-                .and(SearchSpecs.like("summary", summary))
+                .and(voucherSummarySpec(summary))
                 .and(SearchSpecs.like("sourceBizNo", sourceBizNo))
                 .and(SearchSpecs.equal("status", status))
                 .and(SearchSpecs.like("createdBy", createdBy));
@@ -733,7 +741,7 @@ public class FinanceService {
                 .and(SearchSpecs.equal("belongMonth", firstText(request.belongMonth(), null)))
                 .and(SearchSpecs.equal("projectCode", firstText(request.projectCode(), null)))
                 .and(SearchSpecs.like("voucherNo", request.voucherNo()))
-                .and(SearchSpecs.like("summary", request.summary()))
+                .and(voucherSummarySpec(request.summary()))
                 .and(SearchSpecs.like("sourceBizNo", request.sourceBizNo()))
                 .and(SearchSpecs.equal("status", request.status()))
                 .and(SearchSpecs.like("createdBy", request.createdBy()));
@@ -743,6 +751,44 @@ public class FinanceService {
                 ).stream()
                 .map(this::toVoucherView)
                 .toList();
+    }
+
+    private Specification<Voucher> voucherSummarySpec(String value) {
+        if (value == null || value.isBlank()) {
+            return SearchSpecs.unrestricted();
+        }
+        String text = "%" + value.trim().toLowerCase() + "%";
+        return (root, query, criteriaBuilder) -> {
+            query.distinct(true);
+            var lines = root.join("lines", jakarta.persistence.criteria.JoinType.LEFT);
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("summary")), text),
+                    criteriaBuilder.like(criteriaBuilder.lower(lines.get("summary")), text)
+            );
+        };
+    }
+
+    private void applyVoucherAuxiliaryFields(Voucher voucher, VoucherRequest request) {
+        voucher.setCustomerName(firstText(request.customerName(), null));
+        voucher.setDepartmentName(firstText(request.departmentName(), null));
+        voucher.setBusinessUser(firstText(request.businessUser(), null));
+        voucher.setBookkeeper(firstText(request.bookkeeper(), null));
+        voucher.setMaker(firstText(request.maker(), null));
+    }
+
+    private String resolveVoucherSummary(VoucherRequest request) {
+        String requested = firstText(request.summary(), null);
+        if (requested != null) {
+            return requested;
+        }
+        return request.lines().stream()
+                .map(VoucherLineRequest::summary)
+                .map(text -> firstText(text, null))
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(3)
+                .reduce((left, right) -> left + "；" + right)
+                .orElse("手工凭证");
     }
 
     /**
@@ -1686,6 +1732,11 @@ public class FinanceService {
                 defaultString(voucher.getBelongMonth(), voucher.getVoucherDate().format(DateTimeFormatter.ofPattern("yyyy-MM"))),
                 voucher.getProjectCode(),
                 voucher.getProjectName(),
+                voucher.getCustomerName(),
+                voucher.getDepartmentName(),
+                voucher.getBusinessUser(),
+                voucher.getBookkeeper(),
+                voucher.getMaker(),
                 voucher.getSummary(),
                 voucher.getStatus(),
                 voucher.getTotalDebit(),
